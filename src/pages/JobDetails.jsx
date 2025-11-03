@@ -5,7 +5,9 @@ import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Briefcase, DollarSign, Calendar, Building2, Sparkles } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, MapPin, Briefcase, DollarSign, Calendar, Building2, Sparkles, Copy, Download } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import JobApplicationForm from "@/components/jobs/JobApplicationForm";
@@ -25,6 +27,8 @@ const JobDetails = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [showResumeUpload, setShowResumeUpload] = useState(false);
   const [enhancingCV, setEnhancingCV] = useState(false);
+  const [showEnhancedModal, setShowEnhancedModal] = useState(false);
+  const [enhancedCVText, setEnhancedCVText] = useState("");
 
   useEffect(() => {
     fetchJobDetails();
@@ -113,47 +117,58 @@ const JobDetails = () => {
       }
 
       const enhancedText = data.enhancedCV;
-      const fileName = `enhanced-cv-${job.title.replace(/\s+/g, '-')}`;
-
-      // Generate PDF
-      const pdf = new jsPDF();
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const margin = 15;
-      const maxWidth = pageWidth - margin * 2;
-      
-      const lines = pdf.splitTextToSize(enhancedText, maxWidth);
-      pdf.text(lines, margin, margin);
-      pdf.save(`${fileName}.pdf`);
-
-      // Generate DOCX
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: enhancedText.split('\n').map(line => 
-            new Paragraph({
-              children: [new TextRun(line)]
-            })
-          )
-        }]
-      });
-
-      const blob = await Packer.toBlob(doc);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${fileName}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success('CV enhanced successfully! PDF and Word files downloaded.');
+      setEnhancedCVText(enhancedText);
+      setShowEnhancedModal(true);
+      toast.success('CV enhanced successfully!');
     } catch (error) {
       console.error('Error enhancing CV:', error);
       toast.error('Failed to enhance CV. Please try again.');
     } finally {
       setEnhancingCV(false);
     }
+  };
+
+  const generateCVFiles = async () => {
+    const fileName = `enhanced-cv-${job.title.replace(/\s+/g, '-')}`;
+
+    // Generate PDF
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 15;
+    const maxWidth = pageWidth - margin * 2;
+    
+    const lines = pdf.splitTextToSize(enhancedCVText, maxWidth);
+    pdf.text(lines, margin, margin);
+    pdf.save(`${fileName}.pdf`);
+
+    // Generate DOCX
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: enhancedCVText.split('\n').map(line => 
+          new Paragraph({
+            children: [new TextRun(line)]
+          })
+        )
+      }]
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${fileName}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    toast.success('CV files downloaded successfully!');
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(enhancedCVText);
+    toast.success('Text copied to clipboard!');
   };
 
   const formatDate = (dateString) => {
@@ -324,6 +339,32 @@ const JobDetails = () => {
         </div>
       </div>
       <Footer />
+
+      <Dialog open={showEnhancedModal} onOpenChange={setShowEnhancedModal}>
+        <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Enhanced CV for {job?.title}</DialogTitle>
+            <DialogDescription>
+              Review and edit your enhanced CV below. You can make changes before downloading.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={enhancedCVText}
+            onChange={(e) => setEnhancedCVText(e.target.value)}
+            className="min-h-[400px] font-mono text-sm"
+          />
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={copyToClipboard}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Text
+            </Button>
+            <Button onClick={generateCVFiles}>
+              <Download className="h-4 w-4 mr-2" />
+              Generate new CV
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
