@@ -15,6 +15,7 @@ import ResumeUpload from "@/components/jobs/ResumeUpload";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun } from "docx";
+import * as pdfjsLib from 'pdfjs-dist';
 
 const JobDetails = () => {
   const { id } = useParams();
@@ -92,14 +93,41 @@ const JobDetails = () => {
 
     setEnhancingCV(true);
     try {
-      // Fetch the resume content
+      // Set the worker source for PDF.js
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+      // Fetch the resume file
       const response = await fetch(userProfile.resume_url);
-      const resumeText = await response.text();
+      
+      if (!response.ok) {
+        toast.error('Could not fetch your resume. Please re-upload it.');
+        setShowResumeUpload(true);
+        return;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      
+      // Parse PDF
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let resumeText = '';
+      
+      // Extract text from all pages
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        resumeText += pageText + '\n';
+      }
+
+      if (!resumeText.trim()) {
+        toast.error('Could not extract text from your resume. Please ensure it contains readable text.');
+        return;
+      }
 
       // Call edge function to enhance CV
       const { data, error } = await supabase.functions.invoke('enhance-cv', {
         body: {
-          resumeText,
+          resumeText: resumeText.trim(),
           jobDescription: job.description,
           jobTitle: job.title,
         }
