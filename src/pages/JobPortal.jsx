@@ -10,6 +10,9 @@ import { Search, Briefcase, MapPin, Clock, Building2, Scale } from "lucide-react
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { fetchUsaJobs } from "@/services/usaJobs";
+import { fetchAdzunaJobs } from "@/services/adzuna";
+import { saveJobsToDatabase } from "@/services/jobService";
 
 const JobPortal = () => {
   const [jobs, setJobs] = useState([]);
@@ -29,18 +32,44 @@ const JobPortal = () => {
     fetchJobs();
   }, []);
 
+  // Replace the existing fetchJobs function with this:
   const fetchJobs = async () => {
     try {
+      setLoading(true);
+
+      // === 1. Fetch USA Jobs ===
+      console.log("Fetching USA Jobs...");
+      const usaJobs = await fetchUsaJobs();
+      console.log("USA Jobs received:", usaJobs?.length || 0);
+
+      console.log("Saving USA Jobs to database...");
+      await saveJobsToDatabase(usaJobs, "usajobs");
+
+      // === 2. Fetch Adzuna Jobs ===
+      console.log("Fetching Adzuna Jobs...");
+      const adzunaJobs = await fetchAdzunaJobs();
+      console.log("Adzuna Jobs received:", adzunaJobs?.length || 0);
+
+      console.log("Saving Adzuna Jobs to database...");
+      await saveJobsToDatabase(adzunaJobs, "adzuna");
+
+      // === 3. Fetch all jobs from database ===
+      console.log("Fetching all jobs from database...");
       const { data: jobsData, error } = await supabase
         .from("jobs")
         .select("*")
         .eq("status", "open")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      console.log("Jobs from database:", jobsData);
       setJobs(jobsData || []);
     } catch (error) {
-      console.error("Error fetching jobs:", error);
+      console.error("❌ Error fetching jobs:", error);
     } finally {
       setLoading(false);
     }
@@ -87,6 +116,28 @@ const JobPortal = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentPage]);
+
+  // Add this helper function before the return statement
+  const getPaginationRange = () => {
+    const range = [];
+    const showPages = 5;
+    const halfShow = Math.floor(showPages / 2);
+    
+    let start = currentPage - halfShow;
+    let end = currentPage + halfShow;
+
+    if (start < 1) {
+      start = 1;
+      end = Math.min(showPages, totalPages);
+    }
+
+    if (end > totalPages) {
+      end = totalPages;
+      start = Math.max(1, totalPages - showPages + 1);
+    }
+
+    return { start, end };
+  };
 
   return (
     <>
@@ -138,13 +189,20 @@ const JobPortal = () => {
               </SelectContent>
             </Select>
             {/* Replace the existing Reset Filters Button with this */}
-            <Button 
+            <Button
               size="lg"
               variant="default"
               onClick={resetFilters}
-              className="md:w-48"
+              className="md:w-48 rounded-xl hover:bg-blue-100 hover:text-blue-600 transition-colors duration-300"
             >
               Reset Filters
+            </Button>
+            <Button 
+              onClick={fetchJobs}
+              className="md:w-48 rounded-xl"
+              variant="outline"
+            >
+              Sync USA Jobs
             </Button>
           </div>
 
@@ -210,6 +268,7 @@ const JobPortal = () => {
                         <Button
                           size="sm"
                           variant="default"
+                          className="rounded-xl hover:bg-blue-100 hover:text-blue-600 transition-colors duration-300"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/jobs/${job.id}`);
@@ -233,15 +292,48 @@ const JobPortal = () => {
                   Previous
                 </Button>
 
-                {[...Array(totalPages)].map((_, index) => (
+                {/* First page */}
+                {getPaginationRange().start > 1 && (
+                  <>
+                    <Button
+                      variant={currentPage === 1 ? "default" : "outline"}
+                      className={currentPage === 1 ? "hover:bg-blue-100 hover:text-blue-600 transition-colors duration-300" : ""}
+                      onClick={() => handlePageChange(1)}
+                    >
+                      1
+                    </Button>
+                    {getPaginationRange().start > 2 && <span className="mx-1">...</span>}
+                  </>
+                )}
+
+                {/* Visible page numbers */}
+                {Array.from(
+                  { length: getPaginationRange().end - getPaginationRange().start + 1 },
+                  (_, i) => getPaginationRange().start + i
+                ).map((pageNum) => (
                   <Button
-                    key={index + 1}
-                    variant={currentPage === index + 1 ? "default" : "outline"}
-                    onClick={() => handlePageChange(index + 1)}
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    className={currentPage === pageNum ? "hover:bg-blue-100 hover:text-blue-600 transition-colors duration-300" : ""}
+                    onClick={() => handlePageChange(pageNum)}
                   >
-                    {index + 1}
+                    {pageNum}
                   </Button>
                 ))}
+
+                {/* Last page */}
+                {getPaginationRange().end < totalPages && (
+                  <>
+                    {getPaginationRange().end < totalPages - 1 && <span className="mx-1">...</span>}
+                    <Button
+                      variant={currentPage === totalPages ? "default" : "outline"}
+                      className={currentPage === totalPages ? "hover:bg-blue-100 hover:text-blue-600 transition-colors duration-300" : ""}
+                      onClick={() => handlePageChange(totalPages)}
+                    >
+                      {totalPages}
+                    </Button>
+                  </>
+                )}
 
                 <Button
                   variant="outline"

@@ -23,7 +23,8 @@ const applicationSchema = z.object({
   cover_letter: z.string().min(50, 'Cover letter must be at least 50 characters'),
 });
 
-const JobApplicationForm = ({ job, onCancel }) => {
+// Update the component props to include resumeUrl
+const JobApplicationForm = ({ job, onCancel, resumeUrl }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,22 +42,26 @@ const JobApplicationForm = ({ job, onCancel }) => {
     if (user) fetchUserProfile();
   }, [user]);
 
+  // Update the form initialization with resumeUrl
   const form = useForm({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
       applicant_name: '',
       applicant_email: user?.email || '',
       applicant_phone: '',
-      resume_url: '',
+      resume_url: resumeUrl || '', // Set the enhanced CV URL here
       cover_letter: '',
     },
   });
 
+  // Replace the existing useEffect for resume_url with this
   useEffect(() => {
-    if (userProfile?.resume_url) {
+    if (resumeUrl) {
+      form.setValue('resume_url', resumeUrl);
+    } else if (userProfile?.resume_url) {
       form.setValue('resume_url', userProfile.resume_url);
     }
-  }, [userProfile, form]);
+  }, [resumeUrl, userProfile, form]);
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -175,10 +180,10 @@ const JobApplicationForm = ({ job, onCancel }) => {
                   />
 
                   <div className="flex gap-4">
-                    <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+                    <Button type="button" variant="outline" onClick={onCancel} className="flex-1 rounded-xl">
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={isSubmitting} className="flex-1">
+                    <Button type="submit" disabled={isSubmitting} className="flex-1 rounded-xl hover:bg-blue-100 hover:text-blue-600 transition-colors duration-300">
                       {isSubmitting ? 'Submitting...' : 'Submit Application'}
                     </Button>
                   </div>

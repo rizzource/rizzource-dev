@@ -24,7 +24,7 @@ const Header = () => {
       navigate("/");
     }
   };
-  // console.log("UserProfileData", userProfile);
+  console.log("UserProfileData", userProfile);
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="container mx-auto mobile-optimized">
@@ -42,7 +42,7 @@ const Header = () => {
           </a>
           {/* Right-hand controls */}
           <div className="flex items-center gap-2 sm:gap-4">
-            <ThemeToggle />
+            {/* <ThemeToggle /> */}
             {location.pathname === "/auth" ? (
               // Show Back to Home Button on Auth Page
               <Link
