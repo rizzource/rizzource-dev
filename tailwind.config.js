@@ -148,15 +148,29 @@ export default {
 					to: {
 						height: '0'
 					}
-				}
+				},
+				float: {
+					'0%, 100%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-20px)' },
+				},
+				'float-delayed': {
+					'0%, 100%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-15px)' },
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'float': 'float 6s ease-in-out infinite',
 				'shimmer': 'shimmer 1.5s infinite',
-				'fade-in': 'fadeIn 0.3s ease-out'
-			}
+				'fade-in': 'fadeIn 0.3s ease-out',
+				float: 'float 6s ease-in-out infinite',
+				'float-delayed': 'float-delayed 8s ease-in-out infinite 2s',
+
+				shimmer: 'shimmer 1.5s infinite',
+				'fade-in': 'fadeIn 0.3s ease-out',
+			},
+
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
