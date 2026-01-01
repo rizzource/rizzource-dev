@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 
 import { Search, Briefcase } from "lucide-react";
@@ -19,7 +20,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   getScrappedJobs,
   getFavoriteJobs,
-  setSelectedJob
+  setSelectedJob,
 } from "@/redux/slices/userApiSlice";
 
 import { useNavigate } from "react-router-dom";
@@ -61,7 +62,7 @@ const JobPortal = () => {
     }
   }, [dispatch, posthog]);
 
-  // Auto-select Georgia
+  // Auto-apply Georgia
   useEffect(() => {
     if ((scrappedJobs?.length || favoriteJobs?.length) && !stateFilter) {
       setStateFilter("Georgia");
@@ -69,7 +70,7 @@ const JobPortal = () => {
     }
   }, [scrappedJobs, favoriteJobs, stateFilter]);
 
-  // Reset pagination when filters change
+  // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, stateFilter, areaOfLawFilter]);
@@ -88,8 +89,7 @@ const JobPortal = () => {
       "new york": "New York",
       "los angeles": "California",
       "san francisco": "California",
-      miami: "Florida",
-      washington: "District of Columbia"
+      washington: "District of Columbia",
     };
 
     for (const city in cityToState) {
@@ -100,12 +100,11 @@ const JobPortal = () => {
       GA: "Georgia",
       NY: "New York",
       CA: "California",
-      FL: "Florida",
-      DC: "District of Columbia"
+      DC: "District of Columbia",
     };
 
-    const abbrMatch = location.match(/,\s*([A-Z]{2})$/);
-    if (abbrMatch) return abbrMap[abbrMatch[1]] || null;
+    const match = location.match(/,\s*([A-Z]{2})$/);
+    if (match) return abbrMap[match[1]] || null;
 
     return null;
   };
@@ -120,19 +119,17 @@ const JobPortal = () => {
     ? favoriteJobs
     : scrappedJobs;
 
-  const cleanJobs = (jobsSource || []).filter(j => !isBadJob(j));
+  const cleanJobs = (jobsSource || []).filter((j) => !isBadJob(j));
 
-  // ------------------------------------------------------------
-  // BUILD DROPDOWN OPTIONS
-  // ------------------------------------------------------------
+  // Dropdown data
   const statesList = Array.from(
-    new Set(cleanJobs.map(j => extractState(j.location)).filter(Boolean))
+    new Set(cleanJobs.map((j) => extractState(j.location)).filter(Boolean))
   ).sort();
 
   const areasList = Array.from(
     new Set(
-      cleanJobs.flatMap(j =>
-        j.areaOfLaw ? j.areaOfLaw.split(/,|\//).map(a => a.trim()) : []
+      cleanJobs.flatMap((j) =>
+        j.areaOfLaw ? j.areaOfLaw.split(/,|\//).map((a) => a.trim()) : []
       )
     )
   ).sort();
@@ -162,8 +159,24 @@ const JobPortal = () => {
     indexOfLastJob - jobsPerPage,
     indexOfLastJob
   );
-
   const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
+
+  // ------------------------------------------------------------
+  // DEADLINE HELPERS (ORIGINAL)
+  // ------------------------------------------------------------
+  const isDeadlineUrgent = (date) => {
+    if (!date) return false;
+    const diff = new Date(date) - new Date();
+    return diff > 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+  };
+
+  const formatDeadline = (date) => {
+    if (!date) return "Rolling";
+    return new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   // ------------------------------------------------------------
   // RESUME UPLOAD FLOW
@@ -187,8 +200,8 @@ const JobPortal = () => {
         <div className="container mx-auto px-4 py-8">
 
           {/* HEADER */}
-          <div className="text-center mb-10">
-            <h1 className="text-4xl font-bold mb-2">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold mb-4">
               Every 1L Law-Firm Role. One Smart Search.
             </h1>
             <p className="text-muted-foreground">
@@ -201,7 +214,7 @@ const JobPortal = () => {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search firm, role, or keywords…"
+                placeholder="Search firm or role…"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -216,9 +229,9 @@ const JobPortal = () => {
                 <SelectValue placeholder="State" />
               </SelectTrigger>
               <SelectContent>
-                {statesList.map((state) => (
-                  <SelectItem key={state} value={state}>
-                    {state}
+                {statesList.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -230,9 +243,9 @@ const JobPortal = () => {
                   <SelectValue placeholder="Area of Law" />
                 </SelectTrigger>
                 <SelectContent className="max-h-64 overflow-y-auto">
-                  {areasList.map((area) => (
-                    <SelectItem key={area} value={area}>
-                      {area}
+                  {areasList.map((a) => (
+                    <SelectItem key={a} value={a}>
+                      {a}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -240,7 +253,7 @@ const JobPortal = () => {
             )}
           </div>
 
-          {/* JOB LIST */}
+          {/* JOB LIST — ORIGINAL ROW LAYOUT */}
           {loading ? (
             <div className="text-center py-12 text-muted-foreground">
               Loading jobs…
@@ -256,40 +269,75 @@ const JobPortal = () => {
                 {currentJobs.map((job) => (
                   <div
                     key={job.id}
-                    className="flex items-center gap-4 p-4 bg-white border rounded-lg hover:shadow-md cursor-pointer"
+                    className="flex items-center gap-4 p-4 bg-white border border-gray-100 rounded-lg hover:shadow-md transition-all cursor-pointer h-[88px]"
                     onClick={() => {
                       dispatch(setSelectedJob(job));
                       track("JobViewed", { jobId: job.id });
                       posthog?.capture("job_row_clicked", {
                         job_id: job.id,
-                        firm: job.firmName
+                        firm: job.firmName,
                       });
                       navigate(`/jobs/${job.id}`);
                     }}
                   >
-                    <div className="flex-1 truncate">
-                      <div className="font-semibold truncate">
-                        {job.firmName}
+                    {/* COL 1 — IDENTITY */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[16px] truncate">
+                          {job.firmName}
+                        </span>
+
+                        {job.vaultRank && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-black text-white">
+                            {job.vaultRank}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {job.location} · {job.areaOfLaw || "General"}
+                        {job.location || "Location"} · {job.areaOfLaw || "General"}
                       </div>
                     </div>
 
-                    {/* ACTIONS */}
+                    {/* COL 2 — TRUST */}
+                    <div className="flex-shrink-0 w-44 flex flex-col gap-1 text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 w-fit">
+                        1L Eligible
+                      </span>
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                        Live
+                      </span>
+                    </div>
+
+                    {/* COL 3 — DEADLINE */}
+                    <div className="flex-shrink-0 w-28 text-xs">
+                      <div className="uppercase tracking-wide text-muted-foreground">
+                        Deadline
+                      </div>
+                      <div
+                        className={
+                          isDeadlineUrgent(job.applicationDeadline)
+                            ? "text-red-600 font-medium"
+                            : ""
+                        }
+                      >
+                        {formatDeadline(job.applicationDeadline)}
+                      </div>
+                    </div>
+
+                    {/* COL 4 — ACTIONS */}
                     <div
-                      className="flex gap-2"
+                      className="flex-shrink-0 w-72 flex justify-end gap-2"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => { window.open(job.jobUrl || job.source, "_blank"); }}
+                        onClick={() => navigate(`/jobs/${job.id}`)}
                       >
                         Apply
                       </Button>
 
-                      {/* ✅ RESTORED AI COVER LETTER */}
                       <Button
                         size="sm"
                         className="bg-gradient-to-r from-accent to-gold text-white"
@@ -297,25 +345,24 @@ const JobPortal = () => {
                           dispatch(setSelectedJob(null));
                           track("AICoverLetterOpened", { jobId: job.id });
                           posthog?.capture("ai_cover_letter_opened", {
-                            job_id: job.id
+                            job_id: job.id,
                           });
                           navigate("/cover-letter/generator", {
                             state: {
                               jobId: job.id,
                               title: job.jobTitle,
                               jobCompany: job.firmName,
-                              description: job.jobDescription
-                            }
+                              description: job.jobDescription,
+                            },
                           });
                         }}
                       >
                         AI Cover Letter ⚡
                       </Button>
 
-                      {/* AI DRAFT */}
                       <Button
                         size="sm"
-                        className="bg-black text-white"
+                        className="bg-black text-white hover:bg-black/90"
                         onClick={() => {
                           if (!tempResume?.text) {
                             toast.error("Please upload your resume first");
@@ -325,8 +372,8 @@ const JobPortal = () => {
                           navigate("/resume/editor", {
                             state: {
                               extractedText: tempResume.text,
-                              jobId: job.id
-                            }
+                              jobId: job.id,
+                            },
                           });
                         }}
                       >
@@ -342,14 +389,14 @@ const JobPortal = () => {
                 <Button
                   variant="outline"
                   disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => p - 1)}
+                  onClick={() => setCurrentPage((p) => p - 1)}
                 >
                   Previous
                 </Button>
                 <Button
                   variant="outline"
                   disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => p + 1)}
+                  onClick={() => setCurrentPage((p) => p + 1)}
                 >
                   Next
                 </Button>
