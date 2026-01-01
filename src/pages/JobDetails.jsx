@@ -341,7 +341,7 @@ const JobDetails = () => {
               </div>
 
               <div className="pt-6 border-t border-border/60 space-y-5">
-                {user && (
+                {/* {user && ( */}
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                     {/* Enhance CV Button */}
                     <Button
@@ -380,9 +380,9 @@ const JobDetails = () => {
                       </span>
                     </Button>
                   </div>
-                )}
+                {/* // )} */}
 
-                {!user ? (
+                {/* { {!user ? (
                   <div className="text-center py-4 px-6 bg-muted/30 rounded-xl border border-border/40">
                     <p className="text-muted-foreground mb-3 text-sm">Please sign in to apply for this position</p>
                     <Button
@@ -392,7 +392,7 @@ const JobDetails = () => {
                       Sign In
                     </Button>
                   </div>
-                ) : (
+                ) : ( */}
                   <div className="flex justify-center">
                     <Button
                       size="lg"
@@ -414,7 +414,7 @@ const JobDetails = () => {
                       )}
                     </Button>
                   </div>
-                )}
+                 {/* )}  */}
               </div>
             </CardContent>
           </Card>
