@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+
 import {
   Search,
   Briefcase
@@ -11,6 +12,7 @@ import {
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ResumeEditor from "@/components/resume/ResumeEditor";
 
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -29,7 +31,7 @@ const JobPortal = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { scrappedJobs, loading, favoriteJobs, user } = useSelector(
+  const { scrappedJobs, loading, favoriteJobs, user, tempResume } = useSelector(
     (state) => state.userApi
   );
 
@@ -37,6 +39,14 @@ const JobPortal = () => {
   const [stateFilter, setStateFilter] = useState("");
   const [areaOfLawFilter, setAreaOfLawFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+
+
+  // Resume upload / editor state (for AI Draft flow)
+  const [showResumeUpload, setShowResumeUpload] = useState(false);
+
+
+
+ 
 
   const jobsPerPage = 9;
 
@@ -149,6 +159,18 @@ const JobPortal = () => {
   // ------------------------------------------------------------
   // UI
   // ------------------------------------------------------------
+
+  // If user needs to upload a resume first (same flow as JobDetails)
+  if (showResumeUpload) {
+    return (
+      <>
+        <Header />
+        <div style={{ marginTop: "auto" }}><ResumeEditor onBack={() => setShowResumeUpload(false)} /></div>
+        <Footer />
+      </>
+    );
+  }
+
   return (
     <>
       <Toaster richColors closeButton position="top-center" />
@@ -250,28 +272,71 @@ const JobPortal = () => {
 
                     {/* COL 4 — ACTION */}
                     <div
-                      className="flex-shrink-0 w-56 flex justify-end gap-2"
+                      className="flex-shrink-0 w-72 flex justify-end gap-2"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => navigate(`/jobs/${job.id}`)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          try { e.nativeEvent.stopImmediatePropagation(); } catch (err) {}
+                          dispatch(setSelectedJob(job));
+                          track("JobViewed", { jobId: job.id });
+                          navigate(`/jobs/${job.id}`);
+                        }}
                       >
                         Apply
                       </Button>
 
                       <Button
                         size="sm"
+                        variant="default"
+                        className="bg-gradient-to-r from-accent to-gold text-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Prevent any other click handlers from running on this event
+                          try { e.nativeEvent.stopImmediatePropagation(); } catch (err) {}
+                          // Clear selected job so if the user navigates back to a Job Details URL
+                          // it will redirect back to the Job Portal instead of showing stale details.
+                          dispatch(setSelectedJob(null));
+                          track("AICoverLetterOpened", { jobId: job.id });
+                          navigate("/cover-letter/generator", {
+                            state: {
+                              jobId: job.id,
+                              title: job.jobTitle,
+                              jobCompany: job.firmName,
+                              description: job.jobDescription,
+                            },
+                          });
+                        }}
+                      >
+                        AI Cover Letter ⚡
+                      </Button>
+
+                      <Button
+                        size="sm"
                         className="bg-black text-white hover:bg-black/90"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           track("AIDraftClicked", { jobId: job.id });
-                          navigate(`/jobs/${job.id}?ai=draft`);
+                          if (!tempResume?.text) {
+                            toast.error("Please upload your resume first");
+                            setShowResumeUpload(true);
+                            return;
+                          }
+                          navigate("/resume/editor", {
+                            state: {
+                              file: tempResume.file || null,
+                              extractedText: tempResume.text,
+                              jobId: job.id,
+                            },
+                          });
                         }}
                       >
                         ⚡ AI Draft
                       </Button>
-                    </div>
+                    </div> 
                   </div>
                 ))}
               </div>
@@ -298,6 +363,8 @@ const JobPortal = () => {
           )}
         </div>
       </div>
+
+
 
       <Footer />
     </>
