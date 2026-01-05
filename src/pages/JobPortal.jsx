@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,8 @@ import {
   List,
   FileText,
   Zap,
+  X,
+  RotateCcw,
 } from "lucide-react";
 
 import Header from "@/components/Header";
@@ -50,12 +52,20 @@ function JobPortalFunc() {
   // UI state
   const [scrollY, setScrollY] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedFirm, setSelectedFirm] = useState("All");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedType, setSelectedType] = useState("All");
   const [viewMode, setViewMode] = useState("grid");
   const [animatedCards, setAnimatedCards] = useState({});
   const [showResumeUpload, setShowResumeUpload] = useState(false);
+  const [isSearchBarSticky, setIsSearchBarSticky] = useState(false);
+
+  // Refs for scroll behavior
+  const resultsRef = useRef(null);
+  const searchBarRef = useRef(null);
+  const searchBarStickyOffset = useRef(0);
+  const searchDebounceTimer = useRef(null);
 
   // ------------------------------------------------------------
   // FETCH JOBS
@@ -74,9 +84,19 @@ function JobPortalFunc() {
     }
   }, [dispatch, posthog]);
 
-  // Scroll effect
+  // Scroll effect with sticky detection
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
+    const handleScroll = () => {
+      const currentScroll = window.scrollY;
+      setScrollY(currentScroll);
+      
+      // Detect if search bar should be sticky
+      if (searchBarRef.current) {
+        const offset = searchBarStickyOffset.current;
+        setIsSearchBarSticky(currentScroll > offset);
+      }
+    };
+    
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -100,6 +120,47 @@ function JobPortalFunc() {
     document.querySelectorAll("[data-card]").forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, []);
+
+  // Calculate sticky offset when searchBar mounts
+  useEffect(() => {
+    if (searchBarRef.current) {
+      const rect = searchBarRef.current.getBoundingClientRect();
+      searchBarStickyOffset.current = rect.top + window.scrollY - 80; // 80px for header
+    }
+  }, []);
+
+  // Debounce search term to wait for user to finish typing
+  useEffect(() => {
+    if (searchDebounceTimer.current) {
+      clearTimeout(searchDebounceTimer.current);
+    }
+
+    searchDebounceTimer.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 2000); // 2 second delay
+
+    return () => {
+      if (searchDebounceTimer.current) {
+        clearTimeout(searchDebounceTimer.current);
+      }
+    };
+  }, [searchTerm]);
+
+  // Auto-scroll to results when search/filter changes (using debounced search)
+  useEffect(() => {
+    if (resultsRef.current && (debouncedSearchTerm || selectedFirm !== "All" || selectedLocation !== "Georgia" || selectedType !== "All")) {
+      setTimeout(() => {
+        const headerOffset = 160; // Account for sticky header + search bar
+        const elementPosition = resultsRef.current.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.scrollY - headerOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth"
+        });
+      }, 100); // Small delay to ensure DOM is updated
+    }
+  }, [debouncedSearchTerm, selectedFirm, selectedLocation, selectedType]);
 
   // ------------------------------------------------------------
   // FILTER HELPERS (FROM ORIGINAL COMPONENT)
@@ -239,6 +300,17 @@ function JobPortalFunc() {
     navigate(`/jobs/${job.id}`);
   };
 
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setSelectedFirm("All");
+    setSelectedLocation("Georgia"); // Reset to default Georgia filter
+    setSelectedType("All");
+    track("FiltersReset");
+    posthog?.capture("filters_reset");
+  };
+
+  const hasActiveFilters = searchTerm || selectedFirm !== "All" || selectedLocation !== "Georgia" || selectedType !== "All";
+
   const handleOpenCoverLetter = (job, e) => {
     e?.stopPropagation();
     dispatch(setSelectedJob(null));
@@ -341,13 +413,53 @@ function JobPortalFunc() {
           </div>
         </section>
 
-        {/* Filters Section */}
-        <section className="sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 py-4 sm:py-6 px-4 sm:px-6 overflow-x-auto">
+        {/* Filters Section with Sticky Search Bar */}
+        <section 
+          ref={searchBarRef}
+          className={`sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 py-4 sm:py-6 px-4 sm:px-6 overflow-x-auto transition-all duration-300 ${
+            isSearchBarSticky ? 'shadow-lg shadow-charcoal/5' : ''
+          }`}
+        >
           <div className="container mx-auto">
+            {/* Sticky Search Bar - Shows when scrolling */}
+            <div className={`transition-all duration-300 mb-4 ${
+              isSearchBarSticky ? 'opacity-100 max-h-20' : 'opacity-0 max-h-0 overflow-hidden'
+            }`}>
+              <div className="relative max-w-2xl mx-auto">
+                <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-warm-gray" />
+                <Input
+                  type="text"
+                  placeholder="Search firms, positions..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    track("JobSearchPerformed", { query: e.target.value });
+                  }}
+                  className="h-10 sm:h-12 pl-10 sm:pl-14 pr-4 text-sm sm:text-base font-medium bg-surface border-2 border-charcoal/10 rounded-xl sm:rounded-2xl focus:border-electric-teal focus:ring-0 placeholder:text-warm-gray/50 transition-all hover:border-electric-teal/50"
+                />
+              </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <div className="flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warm-gray" />
-                <span className="text-[9px] sm:text-xs font-black uppercase tracking-widest text-warm-gray">Filters</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warm-gray" />
+                  <span className="text-[9px] sm:text-xs font-black uppercase tracking-widest text-warm-gray">Filters</span>
+                </div>
+                
+                {/* Reset Button - Only shows when filters are active */}
+                {hasActiveFilters && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResetFilters}
+                    className="rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 border-warm-pop/30 text-warm-pop hover:bg-warm-pop/10 hover:border-warm-pop transition-all flex items-center gap-1"
+                    title="Reset all filters"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span className="hidden sm:inline">Reset</span>
+                  </Button>
+                )}
               </div>
 
               {/* View Toggle Buttons */}
@@ -498,7 +610,7 @@ function JobPortalFunc() {
         </section>
 
         {/* Jobs Section */}
-        <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6">
+        <section ref={resultsRef} className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 scroll-mt-40">
           <div className="container mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-12 gap-4">
               <div>
