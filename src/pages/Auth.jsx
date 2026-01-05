@@ -1,7 +1,10 @@
+"use client"
+
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser, registerUser, googleLogin } from "@/redux/slices/userApiSlice";
 import { useNavigate } from "react-router-dom";
+import { usePostHog } from 'posthog-js/react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,38 +12,55 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles, Zap, Shield, Trophy, Briefcase, TrendingUp, Users } from 'lucide-react';
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import logoLight from "@/assets/rizzource-logo-light.png";
 
-const GOOGLE_CLIENT_ID =
-  "267038711162-c6681crs3mm7gq8cheglst9gej50m527.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "267038711162-c6681crs3mm7gq8cheglst9gej50m527.apps.googleusercontent.com";
 
 const Auth = () => {
   const [localError, setLocalError] = useState("");
   const [success, setSuccess] = useState("");
   const [googleReady, setGoogleReady] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [activeTab, setActiveTab] = useState("signin");
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const posthog = usePostHog();
 
   const { user, loading, error } = useSelector((state) => state.userApi);
 
+  // Mouse tracking for parallax
+  useEffect(() => {
+    const handleMouseMove = (e) => setMousePos({ x: e.clientX, y: e.clientY });
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  // Track pageview
+  useEffect(() => {
+    posthog?.capture('$pageview');
+  }, [posthog]);
+
   // Redirect after login
-  // Redirect after login — return to previous page if provided
   useEffect(() => {
     if (user) {
+      posthog?.identify(
+        user.id || user.userId || user.email,
+        {
+          email: user.email,
+          name: user.name || `${user.firstName} ${user.lastName}`,
+        }
+      );
+
       const returnTo = window.history.state?.usr?.returnTo;
       navigate(returnTo || "/");
     }
-  }, [user, navigate]);
+  }, [user, navigate, posthog]);
 
-
-  // ----------------------
   // EMAIL/PASSWORD LOGIN
-  // ----------------------
   const handleSignIn = async (e) => {
     e.preventDefault();
     setLocalError("");
@@ -54,12 +74,13 @@ const Auth = () => {
 
     if (result.error) {
       setLocalError("Invalid email or password");
+      posthog?.capture('login_failed', { method: 'email', error_type: 'invalid_credentials' });
+    } else {
+      posthog?.capture('login_succeeded', { method: 'email' });
     }
   };
 
-  // ------------------------------
-  // LOAD GOOGLE OAUTH2 SDK SAFELY
-  // ------------------------------
+  // LOAD GOOGLE OAUTH2 SDK
   useEffect(() => {
     if (window.google?.accounts?.oauth2) {
       setGoogleReady(true);
@@ -72,25 +93,14 @@ const Auth = () => {
     script.defer = true;
 
     script.onload = () => {
-      if (window.google?.accounts?.oauth2) {
-        setGoogleReady(true);
-      }
+      if (window.google?.accounts?.oauth2) setGoogleReady(true);
     };
 
     script.onerror = () => setGoogleReady(false);
-
     document.body.appendChild(script);
   }, []);
 
-
-
-  // ------------------------------
-  // GOOGLE LOGIN HANDLER (FIXED)
-  // Uses OAuth2 Token Client — NO FedCM
-  // ------------------------------
-  // ------------------------------
-  // GOOGLE LOGIN HANDLER (OAuth Popup Code Flow)
-  // ------------------------------
+  // GOOGLE LOGIN HANDLER
   const handleGoogleAuth = () => {
     setLocalError("");
     setSuccess("");
@@ -100,44 +110,43 @@ const Auth = () => {
       return;
     }
 
+    posthog?.capture('google_auth_initiated');
+
     try {
       const client = window.google.accounts.oauth2.initCodeClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: "openid email profile",
-        ux_mode: "popup",            // ⭐ REAL POPUP WINDOW
-        redirect_uri: "postmessage",  // ⭐ Required for JS-based code flow
+        ux_mode: "popup",
+        redirect_uri: "postmessage",
         callback: async (response) => {
           try {
             const code = response.code;
-
             const result = await dispatch(googleLogin({ code }));
 
             if (result.error) {
               console.error("Google login failed:", result.error);
               setLocalError("Google login failed.");
+              posthog?.capture('login_failed', { method: 'google', error_type: 'google_auth_error' });
+            } else {
+              posthog?.capture('login_succeeded', { method: 'google' });
             }
           } catch (err) {
             console.error("Google callback error:", err);
             setLocalError("Google login failed.");
+            posthog?.capture('login_failed', { method: 'google', error_type: 'callback_error' });
           }
         },
       });
 
-      client.requestCode(); // ⭐ Opens real popup window
+      client.requestCode();
     } catch (err) {
       console.error("Google OAuth init error:", err);
       setLocalError("Google sign-in failed.");
+      posthog?.capture('login_failed', { method: 'google', error_type: 'init_error' });
     }
   };
 
-
-
-
-
-
-  // ----------------------
   // REGISTER HANDLER
-  // ----------------------
   const handleSignUp = async (e) => {
     e.preventDefault();
     setLocalError("");
@@ -148,13 +157,17 @@ const Auth = () => {
     const Password = form.get("password");
     const Confirm = form.get("confirmPassword");
 
+    posthog?.capture('signup_started', { method: 'email' });
+
     if (Password !== Confirm) {
       setLocalError("Passwords do not match");
+      posthog?.capture('signup_failed', { method: 'email', error_type: 'password_mismatch' });
       return;
     }
 
     if (Password.length < 6) {
       setLocalError("Password must be at least 6 characters long");
+      posthog?.capture('signup_failed', { method: 'email', error_type: 'password_too_short' });
       return;
     }
 
@@ -170,157 +183,387 @@ const Auth = () => {
 
     if (result.error) {
       setLocalError("This email is already registered.");
+      posthog?.capture('signup_failed', { method: 'email', error_type: 'email_already_exists' });
       return;
     }
 
+    posthog?.capture('signup_completed', { method: 'email' });
     setSuccess("Account created successfully! You can now sign in.");
   };
 
-  // Small inline Google icon – no extra deps
   const GoogleIcon = () => (
     <span className="flex items-center justify-center h-5 w-5 rounded-full bg-white border mr-2">
       <span className="text-[#4285F4] font-bold text-sm">G</span>
     </span>
   );
 
+  // Stats for the hero section
+  const stats = [
+    { icon: Users, value: "847+", label: "1Ls Placed" },
+    { icon: Trophy, value: "V10", label: "Firm Access" },
+    { icon: TrendingUp, value: "94%", label: "Success Rate" },
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-warm-cream overflow-hidden">
       <Header />
 
-      <main className="flex-1 bg-background flex flex-col lg:flex-row items-stretch justify-center mt-16 lg:mt-20">
+      {/* Animated Background Blobs */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0 opacity-40 transition-transform duration-700 ease-out"
+        style={{
+          transform: `translate(${(mousePos.x - (typeof window !== "undefined" ? window.innerWidth : 1920) / 2) * 0.015}px, ${(mousePos.y - (typeof window !== "undefined" ? window.innerHeight : 1080) / 2) * 0.015}px)`,
+        }}
+      >
+        <div className="absolute top-[15%] left-[5%] w-96 h-96 bg-electric-teal/30 rounded-full blur-[120px] animate-float" />
+        <div className="absolute bottom-[15%] right-[10%] w-[500px] h-[500px] bg-ai-violet/30 rounded-full blur-[150px] animate-float-delayed" />
+        <div className="absolute top-[50%] left-[40%] w-64 h-64 bg-butter-yellow/20 rounded-full blur-[100px] animate-pulse" />
+      </div>
 
-        {/* LEFT SIDE */}
-        <div className="w-full lg:w-1/2 p-4 sm:p-6 flex items-center justify-center">
-          <div className="text-center">
-            <img src={logoLight} alt="RIZZource" className="h-20 mx-auto" />
-            <h1 className="mt-4 text-5xl font-bold">
-              <span className="text-accent">RIZZ</span>
-              <span className="text-primary">ource</span>
-            </h1>
+      <main className="flex-1 flex items-center justify-center pt-24 pb-16 px-6 relative z-10">
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+
+            {/* LEFT SIDE - HERO */}
+            <div className="space-y-10 text-center lg:text-left animate-in fade-in slide-in-from-bottom-8 duration-1000">
+              
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-soft-teal border border-electric-teal/20 text-deep-teal font-black uppercase tracking-[0.2em] text-[10px]">
+                <Sparkles className="h-3 w-3 animate-pulse" />
+                Join the 1% Club
+              </div>
+
+              {/* Title */}
+              <div>
+                <h1 className="text-6xl md:text-8xl font-black leading-[0.85] tracking-tighter text-charcoal mb-6 uppercase">
+                  Your <br />
+                  <span className="relative inline-block">
+                    BigLaw
+                    <svg
+                      className="absolute -bottom-2 left-0 w-full h-4 text-electric-teal/40"
+                      viewBox="0 0 100 10"
+                      preserveAspectRatio="none"
+                    >
+                      <path d="M0 5 Q 25 0, 50 5 T 100 5" fill="none" stroke="currentColor" strokeWidth="4" />
+                    </svg>
+                  </span>
+                  <br />
+                  <span className="text-electric-teal">Journey</span> <br />
+                  Starts Here
+                </h1>
+
+                <p className="text-xl text-warm-gray font-bold uppercase tracking-wider max-w-lg mx-auto lg:mx-0">
+                  AI-Powered Tools. Expert Resources. BigLaw Results.
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto lg:mx-0">
+                {stats.map((stat, i) => (
+                  <div 
+                    key={i} 
+                    className="relative group"
+                    style={{ animationDelay: `${i * 100}ms` }}
+                  >
+                    <div className="relative bg-white rounded-2xl p-4 border-2 border-charcoal/10 group-hover:border-electric-teal/50 transition-all duration-300 group-hover:shadow-xl">
+                      <div className="absolute inset-0 bg-gradient-to-br from-electric-teal/5 to-ai-violet/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="relative">
+                        <stat.icon className="h-6 w-6 text-electric-teal mb-2 mx-auto lg:mx-0" />
+                        <div className="text-2xl font-black text-charcoal">{stat.value}</div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-warm-gray">{stat.label}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Social Proof */}
+              <div className="flex items-center gap-4 justify-center lg:justify-start">
+                <div className="flex -space-x-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="w-12 h-12 rounded-full border-4 border-warm-cream bg-soft-teal flex items-center justify-center text-electric-teal font-black"
+                    >
+                      {String.fromCharCode(64 + i)}
+                    </div>
+                  ))}
+                </div>
+                <div className="text-left">
+                  <div className="text-sm font-black uppercase tracking-wider text-charcoal">
+                    Join 847+ Law Students
+                  </div>
+                  <div className="text-xs font-medium text-warm-gray">
+                    Who landed V100 positions
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT SIDE - AUTH FORM */}
+            <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
+              <Card className="border-none bg-white/95 backdrop-blur-xl shadow-2xl rounded-[3rem] overflow-hidden">
+                
+                <CardHeader className="text-center p-10 bg-gradient-to-br from-electric-teal/5 via-transparent to-ai-violet/5 relative">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-electric-teal/10 rounded-full blur-[60px]" />
+                  <div className="relative">
+                    <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-electric-teal to-deep-teal flex items-center justify-center shadow-xl shadow-electric-teal/30">
+                      <Shield className="h-8 w-8 text-white" />
+                    </div>
+                    <CardTitle className="text-3xl font-black uppercase tracking-tight mb-2">
+                      {activeTab === "signin" ? "Welcome Back" : "Join RIZZource"}
+                    </CardTitle>
+                    <CardDescription className="text-warm-gray font-medium">
+                      {activeTab === "signin" 
+                        ? "Continue your BigLaw journey" 
+                        : "Start your path to V100 firms"}
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-10">
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    
+                    {/* Tab Selector */}
+                    <TabsList className="grid grid-cols-2 mb-8 p-2 bg-warm-cream rounded-2xl h-14">
+                      <TabsTrigger
+                        value="signin"
+                        className="data-[state=active]:bg-charcoal data-[state=active]:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all duration-300 data-[state=active]:shadow-lg"
+                      >
+                        Sign In
+                      </TabsTrigger>
+
+                      <TabsTrigger
+                        value="signup"
+                        className="data-[state=active]:bg-charcoal data-[state=active]:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all duration-300 data-[state=active]:shadow-lg"
+                      >
+                        Sign Up
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* SIGN IN TAB */}
+                    <TabsContent value="signin" className="space-y-6">
+                      <form onSubmit={handleSignIn} className="space-y-5">
+                        <div>
+                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                            Email
+                          </Label>
+                          <Input 
+                            name="email" 
+                            type="email" 
+                            required 
+                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                                     focus-visible:ring-electric-teal focus-visible:border-electric-teal
+                                     transition-all"
+                            placeholder="your@email.com"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                            Password
+                          </Label>
+                          <Input 
+                            name="password" 
+                            type="password" 
+                            required 
+                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                                     focus-visible:ring-electric-teal focus-visible:border-electric-teal
+                                     transition-all"
+                            placeholder="••••••••"
+                          />
+                        </div>
+
+                        <Button 
+                          disabled={loading} 
+                          className="w-full h-14 rounded-xl bg-charcoal hover:bg-deep-teal text-white 
+                                   font-black uppercase tracking-widest text-sm
+                                   shadow-lg shadow-charcoal/20
+                                   transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
+                                   group relative overflow-hidden"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                              Signing In...
+                            </>
+                          ) : (
+                            <>
+                              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                              <Zap className="mr-2 h-5 w-5" />
+                              Sign In
+                            </>
+                          )}
+                        </Button>
+
+                        {/* Divider */}
+                        <div className="relative py-4">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t-2 border-charcoal/10" />
+                          </div>
+                          <div className="relative flex justify-center">
+                            <span className="px-4 bg-white text-xs font-black uppercase tracking-widest text-warm-gray">
+                              Or
+                            </span>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleGoogleAuth}
+                          disabled={!googleReady || loading}
+                          className="w-full h-14 rounded-xl border-2 border-charcoal/20 bg-white
+                                   hover:bg-soft-teal hover:border-electric-teal
+                                   font-bold uppercase tracking-wider text-sm
+                                   transition-all duration-300 hover:scale-[1.02]
+                                   flex items-center justify-center"
+                        >
+                          {loading && !user ? (
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          ) : (
+                            <GoogleIcon />
+                          )}
+                          <span>Continue with Google</span>
+                        </Button>
+                      </form>
+                    </TabsContent>
+
+                    {/* SIGN UP TAB */}
+                    <TabsContent value="signup" className="space-y-6">
+                      <form onSubmit={handleSignUp} className="space-y-5">
+                        <div>
+                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                            Email
+                          </Label>
+                          <Input 
+                            name="email" 
+                            type="email" 
+                            required 
+                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                                     focus-visible:ring-electric-teal focus-visible:border-electric-teal
+                                     transition-all"
+                            placeholder="your@email.com"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                            Password
+                          </Label>
+                          <Input 
+                            name="password" 
+                            type="password" 
+                            required 
+                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                                     focus-visible:ring-electric-teal focus-visible:border-electric-teal
+                                     transition-all"
+                            placeholder="Min. 6 characters"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                            Confirm Password
+                          </Label>
+                          <Input 
+                            name="confirmPassword" 
+                            type="password" 
+                            required 
+                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                                     focus-visible:ring-electric-teal focus-visible:border-electric-teal
+                                     transition-all"
+                            placeholder="Re-enter password"
+                          />
+                        </div>
+
+                        <Button 
+                          disabled={loading} 
+                          className="w-full h-14 rounded-xl 
+                                   bg-gradient-to-r from-electric-teal to-deep-teal text-white
+                                   font-black uppercase tracking-widest text-sm
+                                   shadow-lg shadow-electric-teal/30
+                                   transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
+                                   group relative overflow-hidden"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                              Creating Account...
+                            </>
+                          ) : (
+                            <>
+                              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                              <Sparkles className="mr-2 h-5 w-5" />
+                              Create Account
+                            </>
+                          )}
+                        </Button>
+
+                        {/* Divider */}
+                        <div className="relative py-4">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t-2 border-charcoal/10" />
+                          </div>
+                          <div className="relative flex justify-center">
+                            <span className="px-4 bg-white text-xs font-black uppercase tracking-widest text-warm-gray">
+                              Or
+                            </span>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleGoogleAuth}
+                          disabled={!googleReady || loading}
+                          className="w-full h-14 rounded-xl border-2 border-charcoal/20 bg-white
+                                   hover:bg-soft-teal hover:border-electric-teal
+                                   font-bold uppercase tracking-wider text-sm
+                                   transition-all duration-300 hover:scale-[1.02]
+                                   flex items-center justify-center"
+                        >
+                          {loading && !user ? (
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          ) : (
+                            <GoogleIcon />
+                          )}
+                          <span>Sign up with Google</span>
+                        </Button>
+                      </form>
+                    </TabsContent>
+                  </Tabs>
+
+                  {/* ERRORS */}
+                  {(localError || error) && (
+                    <Alert className="mt-6 border-2 border-coral/50 bg-coral/10 rounded-xl animate-in fade-in slide-in-from-top-4 duration-300">
+                      <AlertDescription className="text-coral font-bold text-sm">
+                        {localError || error}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* SUCCESS */}
+                  {success && (
+                    <Alert className="mt-6 border-2 border-electric-teal/50 bg-soft-teal rounded-xl animate-in fade-in slide-in-from-top-4 duration-300">
+                      <AlertDescription className="text-deep-teal font-bold text-sm flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        {success}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Trust Badge */}
+                  <div className="mt-8 pt-6 border-t-2 border-charcoal/10">
+                    <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-warm-gray">
+                      <Shield className="h-4 w-4 text-electric-teal" />
+                      Secure & Trusted by 847+ Law Students
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
-
-        {/* RIGHT SIDE */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-xl backdrop-blur-sm">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Welcome Back</CardTitle>
-              <CardDescription>Sign in or create your account</CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <Tabs defaultValue="signin">
-                <TabsList className="grid grid-cols-2 mb-6">
-                  <TabsTrigger
-                    value="signin"
-                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md transition-all duration-200"
-                  >
-                    Sign In
-                  </TabsTrigger>
-
-                  <TabsTrigger
-                    value="signup"
-                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md transition-all duration-200"
-                  >
-                    Sign Up
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* SIGN IN */}
-                <TabsContent value="signin">
-                  <form onSubmit={handleSignIn} className="space-y-4">
-                    <div>
-                      <Label>Email</Label>
-                      <Input name="email" type="email" required />
-                    </div>
-
-                    <div>
-                      <Label>Password</Label>
-                      <Input name="password" type="password" required />
-                    </div>
-
-                    <Button disabled={loading} className="w-full mt-2">
-                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Sign In
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleGoogleAuth}
-                      disabled={!googleReady || loading}
-                      className="w-full mt-3 rounded-md border border-slate-300 bg-white hover:bg-slate-100 flex items-center justify-center"
-                    >
-                      {loading && !user ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <GoogleIcon />
-                      )}
-                      <span>Sign in with Google</span>
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                {/* SIGN UP */}
-                <TabsContent value="signup">
-                  <form onSubmit={handleSignUp} className="space-y-4">
-                    <div>
-                      <Label>Email</Label>
-                      <Input name="email" type="email" required />
-                    </div>
-
-                    <div>
-                      <Label>Password</Label>
-                      <Input name="password" type="password" required />
-                    </div>
-
-                    <div>
-                      <Label>Confirm Password</Label>
-                      <Input name="confirmPassword" type="password" required />
-                    </div>
-
-                    <Button disabled={loading} className="w-full mt-2">
-                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Create Account
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleGoogleAuth}
-                      disabled={!googleReady || loading}
-                      className="w-full mt-3 rounded-md border border-slate-300 bg-white hover:bg-slate-100 flex items-center justify-center"
-                    >
-                      {loading && !user ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <GoogleIcon />
-                      )}
-                      <span>Sign up with Google</span>
-                    </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
-
-              {/* ERRORS */}
-              {(localError || error) && (
-                <Alert className="mt-4 border-destructive bg-destructive/10">
-                  <AlertDescription className="text-destructive">
-                    {localError || error}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* SUCCESS */}
-              {success && (
-                <Alert className="mt-4 border-primary bg-primary/10">
-                  <AlertDescription className="text-primary">
-                    {success}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </main>
 
