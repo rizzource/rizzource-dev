@@ -35,8 +35,9 @@ import { toast, Toaster } from "sonner";
 import { track } from "@/lib/analytics";
 import { usePostHog } from "posthog-js/react";
 import JobListView from "./JobListView";
+import Loader from "./Loader";
 
-export default function JobPortal() {
+function JobPortalFunc() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const posthog = usePostHog();
@@ -604,7 +605,7 @@ export default function JobPortal() {
               <JobListView navigate={navigate} handleJobClick={handleJobClick} tempResume={tempResume} jobs={filteredJobs} />
             )}
 
-            {filteredJobs.length === 0 && (
+            {!loading && filteredJobs.length === 0 && (
               <div className="text-center py-12 sm:py-20 animate-scale-in">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-soft-teal rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 animate-float">
                   <Search className="w-8 h-8 sm:w-10 sm:h-10 text-electric-teal" />
@@ -736,16 +737,16 @@ export default function JobPortal() {
           }
         `}</style>
       </div>
-
+      {loading && <Loader fullScreen={true} text="Loading opportunities..." />}
       <Footer />
     </>
   );
 }
 
-// export default function JobPortal() {
-//   return (
-//     <Suspense fallback={null}>
-//       <JobPortal />
-//     </Suspense>
-//   );
-// }
+export default function JobPortal() {
+  return (
+    <Suspense fallback={null}>
+      <JobPortalFunc />
+    </Suspense>
+  );
+}
