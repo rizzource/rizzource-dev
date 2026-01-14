@@ -114,7 +114,7 @@ const MinimalistHome = () => {
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
               Land Your{" "}
-              <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+              <span className="text-electric-teal">
                 Dream 1L Summer
               </span>
             </h1>
@@ -158,15 +158,15 @@ const MinimalistHome = () => {
                 onClick={() => navigate('/jobs')}
                 size="lg"
                 className="relative overflow-hidden group px-8 py-6 text-lg font-bold rounded-xl
-                           bg-gradient-to-r from-primary to-accent text-white shadow-lg 
+                           bg-electric-teal text-white shadow-lg 
                            transition-all duration-300 ease-out
-                           hover:shadow-xl hover:scale-105 w-full sm:w-auto"
+                           hover:bg-deep-teal hover:shadow-xl hover:scale-105 w-full sm:w-auto"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   Start Your Journey
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </span>
-                <span className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></span>
+                <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></span>
               </Button>
 
               {/* <Button
@@ -229,7 +229,7 @@ const MinimalistHome = () => {
           </div>
 
           <div className="text-center mt-12">
-            <p className="text-muted-foreground text-sm">
+            <p className="text-electric-teal font-semibold text-sm tracking-wide">
               + Many more V100 firms
             </p>
           </div>
@@ -362,9 +362,9 @@ const MinimalistHome = () => {
                 onClick={() => navigate('/jobs')}
                 size="lg"
                 className="relative overflow-hidden group px-10 py-6 text-lg font-bold rounded-xl
-                           bg-gradient-to-r from-primary to-accent text-white shadow-lg 
+                           bg-electric-teal text-white shadow-lg 
                            transition-all duration-300 ease-out
-                           hover:shadow-xl hover:scale-105 w-full sm:w-auto"
+                           hover:bg-deep-teal hover:shadow-xl hover:scale-105 w-full sm:w-auto"
               >
                 <span className="relative z-10 flex items-center gap-2">
                   Get Started Free
@@ -372,7 +372,7 @@ const MinimalistHome = () => {
                 </span>
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-3 inline-block text-xs px-3 py-1 rounded-full bg-muted/10 text-muted-foreground font-medium">
               No credit card required
             </p>
           </div>

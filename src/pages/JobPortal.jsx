@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -153,6 +153,17 @@ export default function JobPortal() {
   // ------------------------------------------------------------
   // ROUTING
   // ------------------------------------------------------------
+  const location = useLocation();
+
+  // Open or close the resume editor based on ?resume=true
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search);
+      setShowResumeUpload(params.get("resume") === "true");
+    } catch (err) {
+      // noop
+    }
+  }, [location.search]);
   const handleJobClick = (job) => {
     dispatch(setSelectedJob(job));
     navigate(`/jobs/${job.id}`);
