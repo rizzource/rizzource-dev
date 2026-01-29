@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, Suspense } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,24 +7,19 @@ import { Input } from "@/components/ui/input";
 import {
   Search,
   MapPin,
-  Briefcase,
   Clock,
-  Users,
   ArrowRight,
   Filter,
   Sparkles,
   TrendingUp,
   LayoutGrid,
   List,
-  FileText,
-  Zap,
-  X,
-  RotateCcw,
 } from "lucide-react";
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ResumeEditor from "@/components/resume/ResumeEditor";
+import JobListView from "./JobListView";
 
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -33,23 +28,19 @@ import {
   setSelectedJob,
 } from "@/redux/slices/userApiSlice";
 
-import { toast, Toaster } from "sonner";
+import { Toaster } from "sonner";
 import { track } from "@/lib/analytics";
 import { usePostHog } from "posthog-js/react";
-import JobListView from "./JobListView";
-import Loader from "./Loader";
 
 function JobPortalFunc() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const posthog = usePostHog();
 
-  // Redux state
-  const { scrappedJobs, loading, favoriteJobs, tempResume } = useSelector(
+  const { scrappedJobs, favoriteJobs, tempResume } = useSelector(
     (state) => state.userApi
   );
 
-  // UI state
   const [scrollY, setScrollY] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -57,7 +48,6 @@ function JobPortalFunc() {
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedType, setSelectedType] = useState("All");
   const [viewMode, setViewMode] = useState("grid");
-  const [animatedCards, setAnimatedCards] = useState({});
   const [showResumeUpload, setShowResumeUpload] = useState(false);
   const [isSearchBarSticky, setIsSearchBarSticky] = useState(false);
 
@@ -68,7 +58,7 @@ function JobPortalFunc() {
   const searchDebounceTimer = useRef(null);
 
   // ------------------------------------------------------------
-  // FETCH JOBS
+  // FETCH
   // ------------------------------------------------------------
   useEffect(() => {
     const isFavorites = window.location.href.includes("favoritejobs");
@@ -84,7 +74,7 @@ function JobPortalFunc() {
     }
   }, [dispatch, posthog]);
 
-  // Scroll effect with sticky detection
+  // Scroll animation helper
   useEffect(() => {
     const handleScroll = () => {
       const currentScroll = window.scrollY;
@@ -101,88 +91,28 @@ function JobPortalFunc() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Card animation on scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setAnimatedCards((prev) => ({
-              ...prev,
-              [entry.target.id]: true,
-            }));
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    document.querySelectorAll("[data-card]").forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
-
-  // Calculate sticky offset when searchBar mounts
-  useEffect(() => {
-    if (searchBarRef.current) {
-      const rect = searchBarRef.current.getBoundingClientRect();
-      searchBarStickyOffset.current = rect.top + window.scrollY - 80; // 80px for header
-    }
-  }, []);
-
-  // Debounce search term to wait for user to finish typing
-  useEffect(() => {
-    if (searchDebounceTimer.current) {
-      clearTimeout(searchDebounceTimer.current);
-    }
-
-    searchDebounceTimer.current = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 2000); // 2 second delay
-
-    return () => {
-      if (searchDebounceTimer.current) {
-        clearTimeout(searchDebounceTimer.current);
-      }
-    };
-  }, [searchTerm]);
-
-  // Auto-scroll to results when search/filter changes (using debounced search)
-  useEffect(() => {
-    if (resultsRef.current && (debouncedSearchTerm || selectedFirm !== "All" || selectedLocation !== "Georgia" || selectedType !== "All")) {
-      setTimeout(() => {
-        const headerOffset = 160; // Account for sticky header + search bar
-        const elementPosition = resultsRef.current.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.scrollY - headerOffset;
-
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: "smooth"
-        });
-      }, 100); // Small delay to ensure DOM is updated
-    }
-  }, [debouncedSearchTerm, selectedFirm, selectedLocation, selectedType]);
-
   // ------------------------------------------------------------
-  // FILTER HELPERS (FROM ORIGINAL COMPONENT)
+  // FILTER HELPERS
   // ------------------------------------------------------------
   const extractState = (location = "") => {
     if (!location) return null;
     const loc = location.toLowerCase();
 
-    const cityToState = {
+    const map = {
       atlanta: "Georgia",
+      "new york": "New York",
       boston: "Massachusetts",
       chicago: "Illinois",
-      "new york": "New York",
-      "los angeles": "California",
-      "san francisco": "California",
       washington: "District of Columbia",
+      "san francisco": "California",
+      "los angeles": "California",
     };
 
-    for (const city in cityToState) {
-      if (loc.includes(city)) return cityToState[city];
+    for (const city in map) {
+      if (loc.includes(city)) return map[city];
     }
 
+    const abbr = location.match(/,\s*([A-Z]{2})$/);
     const abbrMap = {
       GA: "Georgia",
       NY: "New York",
@@ -192,16 +122,12 @@ function JobPortalFunc() {
       IL: "Illinois",
     };
 
-    const match = location.match(/,\s*([A-Z]{2})$/);
-    if (match) return abbrMap[match[1]] || null;
-
-    return null;
+    return abbr ? abbrMap[abbr[1]] : null;
   };
 
   const isBadJob = (job) =>
-    !job ||
-    !job.firmName ||
-    !job.jobTitle ||
+    !job?.firmName ||
+    !job?.jobTitle ||
     job.jobTitle.toLowerCase().includes("no 1l");
 
   const jobsSource = window.location.href.includes("favoritejobs")
@@ -210,148 +136,57 @@ function JobPortalFunc() {
 
   const cleanJobs = (jobsSource || []).filter((j) => !isBadJob(j));
 
-  // Auto-apply Georgia filter on load
   useEffect(() => {
     if (cleanJobs.length && selectedLocation === "All") {
       setSelectedLocation("Georgia");
-      track("AutoStateFilterApplied", { state: "Georgia" });
     }
-  }, [cleanJobs.length]);
+  }, [cleanJobs.length]); // keep your behavior
 
-  // Extract unique states and firms for filters
-  const statesList = Array.from(
-    new Set(cleanJobs.map((j) => extractState(j.location)).filter(Boolean))
-  ).sort();
-
-  const firmsList = Array.from(
-    new Set(cleanJobs.map((j) => j.firmName).filter(Boolean))
-  ).sort();
-
-  const areasList = Array.from(
-    new Set(
+  const statesList = [
+    ...new Set(cleanJobs.map((j) => extractState(j.location)).filter(Boolean)),
+  ];
+  const firmsList = [...new Set(cleanJobs.map((j) => j.firmName).filter(Boolean))];
+  const areasList = [
+    ...new Set(
       cleanJobs.flatMap((j) =>
         j.areaOfLaw ? j.areaOfLaw.split(/,|\//).map((a) => a.trim()) : []
       )
-    )
-  ).sort();
+    ),
+  ];
 
-  // ------------------------------------------------------------
-  // FILTER LOGIC
-  // ------------------------------------------------------------
   const filteredJobs = cleanJobs.filter((job) => {
-    const matchesSearch =
-      !searchTerm ||
-      job.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.firmName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.jobDescription?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesFirm =
-      selectedFirm === "All" || job.firmName === selectedFirm;
-
-    const matchesLocation =
-      selectedLocation === "All" || extractState(job.location) === selectedLocation;
-
-    const matchesType =
-      selectedType === "All" || job.areaOfLaw?.toLowerCase().includes(selectedType.toLowerCase());
-
-    return matchesSearch && matchesFirm && matchesLocation && matchesType;
+    const q = searchTerm.toLowerCase();
+    return (
+      (!q ||
+        job.jobTitle?.toLowerCase().includes(q) ||
+        job.firmName?.toLowerCase().includes(q)) &&
+      (selectedFirm === "All" || job.firmName === selectedFirm) &&
+      (selectedLocation === "All" ||
+        extractState(job.location) === selectedLocation) &&
+      (selectedType === "All" ||
+        job.areaOfLaw?.toLowerCase().includes(selectedType.toLowerCase()))
+    );
   });
 
-  const heroOpacity = Math.max(0, 1 - scrollY / 400);
-
   // ------------------------------------------------------------
-  // DEADLINE HELPERS
+  // ROUTING
   // ------------------------------------------------------------
-  const isDeadlineUrgent = (date) => {
-    if (!date) return false;
-    const diff = new Date(date) - new Date();
-    return diff > 0 && diff <= 7 * 24 * 60 * 60 * 1000;
-  };
+  const location = useLocation();
 
-  const formatDeadline = (date) => {
-    if (!date) return "Rolling";
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const getDeadlineColor = (deadline) => {
-    return isDeadlineUrgent(deadline) ? "text-warm-pop" : "text-charcoal";
-  };
-
-  const getDeadlineText = (deadline) => {
-    if (!deadline) return "Rolling";
-    const daysUntil = Math.ceil((new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24));
-    return daysUntil < 7 ? `${daysUntil} days` : formatDeadline(deadline);
-  };
-
-  // ------------------------------------------------------------
-  // ROUTING HANDLERS
-  // ------------------------------------------------------------
+  // Open or close the resume editor based on ?resume=true
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search);
+      setShowResumeUpload(params.get("resume") === "true");
+    } catch (err) {
+      // noop
+    }
+  }, [location.search]);
   const handleJobClick = (job) => {
     dispatch(setSelectedJob(job));
-    track("JobViewed", { jobId: job.id });
-    posthog?.capture("job_card_clicked", {
-      job_id: job.id,
-      firm: job.firmName,
-      view_mode: viewMode,
-    });
     navigate(`/jobs/${job.id}`);
   };
 
-  const handleResetFilters = () => {
-    setSearchTerm("");
-    setSelectedFirm("All");
-    setSelectedLocation("Georgia"); // Reset to default Georgia filter
-    setSelectedType("All");
-    track("FiltersReset");
-    posthog?.capture("filters_reset");
-  };
-
-  const hasActiveFilters = searchTerm || selectedFirm !== "All" || selectedLocation !== "Georgia" || selectedType !== "All";
-
-  const handleOpenCoverLetter = (job, e) => {
-    e?.stopPropagation();
-    dispatch(setSelectedJob(null));
-    track("AICoverLetterOpened", { jobId: job.id });
-    posthog?.capture("ai_cover_letter_opened", {
-      job_id: job.id,
-      firm: job.firmName,
-    });
-    navigate("/cover-letter/generator", {
-      state: {
-        jobId: job.id,
-        title: job.jobTitle,
-        jobCompany: job.firmName,
-        description: job.jobDescription,
-      },
-    });
-  };
-
-  const handleOpenResume = (job, e) => {
-    e?.stopPropagation();
-    if (!tempResume?.text) {
-      toast.error("Please upload your resume first");
-      setShowResumeUpload(true);
-      return;
-    }
-    track("AIResumeOpened", { jobId: job.id });
-    posthog?.capture("ai_resume_opened", {
-      job_id: job.id,
-      firm: job.firmName,
-    });
-    navigate("/resume/editor", {
-      state: {
-        extractedText: tempResume.text,
-        jobId: job.id,
-      },
-    });
-  };
-
-  // ------------------------------------------------------------
-  // RESUME UPLOAD FLOW
-  // ------------------------------------------------------------
   if (showResumeUpload) {
     return (
       <>
@@ -364,241 +199,139 @@ function JobPortalFunc() {
 
   return (
     <>
-      <Toaster richColors closeButton position="top-center" />
+      <Toaster richColors position="top-center" />
       <Header />
 
       <div className="min-h-screen bg-warm-cream text-charcoal">
+        {/* ---------------- HERO ---------------- */}
         <section
-          className="relative pt-20 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-20 px-4 sm:px-6 overflow-hidden"
-          style={{ opacity: heroOpacity, transform: `translateY(${scrollY * 0.3}px)` }}
+          className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6"
+          style={{ opacity: Math.max(0, 1 - scrollY / 400) }}
         >
-          {/* Background Gradient with animated blobs */}
-          <div className="absolute inset-0 pointer-events-none opacity-30">
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-electric-teal/20 rounded-full blur-[150px] animate-blob-float" />
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-ai-violet/20 rounded-full blur-[120px] animate-blob-rotate" />
-          </div>
+          <div className="max-w-4xl mx-auto text-center">
+            <Badge className="mb-6 bg-ai-violet/10 text-ai-violet text-xs sm:text-sm">
+              <TrendingUp className="w-4 h-4 mr-1" />
+              {filteredJobs.length} Live Opportunities
+            </Badge>
 
-          <div className="container mx-auto relative z-10">
-            <div className="max-w-4xl mx-auto text-center">
-              <Badge className="bg-ai-violet/10 text-ai-violet border-ai-violet/20 font-black uppercase tracking-[0.2em] px-4 sm:px-6 py-1.5 sm:py-2 mb-4 sm:mb-8 text-[9px] sm:text-[10px] animate-scale-in">
-                <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1.5 sm:mr-2" />
-                {filteredJobs.length} Live Opportunities
-              </Badge>
+            <h1 className="text-4xl sm:text-6xl md:text-8xl font-black leading-tight">
+              Land Your
+              <br />
+              <span className="text-electric-teal">BigLaw Offer</span>
+            </h1>
 
-              <h1 className="text-4xl sm:text-6xl md:text-8xl font-black uppercase tracking-tighter leading-[0.9] mb-4 sm:mb-6 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                Land Your
-                <br />
-                <span className="text-electric-teal animate-pulse-glow inline-block">BigLaw Offer</span>
-              </h1>
+            <p className="mt-6 text-sm sm:text-lg text-warm-gray">
+              Vault 10 Firms. Real Positions.
+            </p>
 
-              <p className="text-base sm:text-xl md:text-2xl text-warm-gray font-bold uppercase tracking-wider mb-8 sm:mb-12 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-100">
-                Vault 10 Firms. Real Positions. Your Future.
-              </p>
-
-              {/* Search Bar */}
-              <div className="relative max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-200">
-                <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 text-warm-gray animate-pulse" />
-                <Input
-                  type="text"
-                  placeholder="Search firms, positions..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    track("JobSearchPerformed", { query: e.target.value });
-                  }}
-                  className="h-12 sm:h-14 md:h-16 pl-12 sm:pl-16 pr-4 sm:pr-6 text-sm sm:text-base md:text-lg font-medium bg-surface border-2 border-charcoal/10 rounded-2xl sm:rounded-[2rem] focus:border-electric-teal focus:ring-0 placeholder:text-warm-gray/50 transition-all hover:border-electric-teal/50"
-                />
-              </div>
+            <div className="relative mt-8 max-w-xl mx-auto">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-warm-gray" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search firms or roles"
+                className="pl-12 h-12 sm:h-14 text-base rounded-xl"
+              />
             </div>
           </div>
         </section>
 
-        {/* Filters Section with Sticky Search Bar */}
-        <section 
-          ref={searchBarRef}
-          className={`sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 py-4 sm:py-6 px-4 sm:px-6 overflow-x-auto transition-all duration-300 ${
-            isSearchBarSticky ? 'shadow-lg shadow-charcoal/5' : ''
-          }`}
-        >
+        {/* ---------------- FILTER BAR ---------------- */}
+        <section className="sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 py-4 sm:py-6 px-4 sm:px-6 overflow-x-auto">
           <div className="container mx-auto">
-            {/* Sticky Search Bar - Shows when scrolling */}
-            <div className={`transition-all duration-300 mb-4 ${
-              isSearchBarSticky ? 'opacity-100 max-h-20' : 'opacity-0 max-h-0 overflow-hidden'
-            }`}>
-              <div className="relative max-w-2xl mx-auto">
-                <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-warm-gray" />
-                <Input
-                  type="text"
-                  placeholder="Search firms, positions..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    track("JobSearchPerformed", { query: e.target.value });
-                  }}
-                  className="h-10 sm:h-12 pl-10 sm:pl-14 pr-4 text-sm sm:text-base font-medium bg-surface border-2 border-charcoal/10 rounded-xl sm:rounded-2xl focus:border-electric-teal focus:ring-0 placeholder:text-warm-gray/50 transition-all hover:border-electric-teal/50"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warm-gray" />
-                  <span className="text-[9px] sm:text-xs font-black uppercase tracking-widest text-warm-gray">Filters</span>
-                </div>
-                
-                {/* Reset Button - Only shows when filters are active */}
-                {hasActiveFilters && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleResetFilters}
-                    className="rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 border-warm-pop/30 text-warm-pop hover:bg-warm-pop/10 hover:border-warm-pop transition-all flex items-center gap-1"
-                    title="Reset all filters"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span className="hidden sm:inline">Reset</span>
-                  </Button>
-                )}
+            {/* Header + View Toggles */}
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-warm-gray" />
+                <span className="text-xs font-black uppercase tracking-widest text-warm-gray">
+                  Filters
+                </span>
               </div>
 
-              {/* View Toggle Buttons */}
-              <div className="flex items-center gap-2 ml-auto sm:ml-0">
+              <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant={viewMode === "grid" ? "default" : "outline"}
-                  onClick={() => {
-                    setViewMode("grid");
-                    track("ViewModeChanged", { mode: "grid" });
-                  }}
-                  className={`rounded-lg font-bold uppercase tracking-widest text-[10px] sm:text-[11px] p-1.5 sm:p-2 ${viewMode === "grid"
-                    ? "bg-electric-teal hover:bg-deep-teal text-white"
-                    : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                    }`}
-                  title="Grid View"
+                  onClick={() => setViewMode("grid")}
                 >
-                  <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <LayoutGrid className="w-4 h-4" />
                 </Button>
                 <Button
                   size="sm"
                   variant={viewMode === "list" ? "default" : "outline"}
-                  onClick={() => {
-                    setViewMode("list");
-                    track("ViewModeChanged", { mode: "list" });
-                  }}
-                  className={`rounded-lg font-bold uppercase tracking-widest text-[10px] sm:text-[11px] p-1.5 sm:p-2 ${viewMode === "list"
-                    ? "bg-electric-teal hover:bg-deep-teal text-white"
-                    : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                    }`}
-                  title="List View"
+                  onClick={() => setViewMode("list")}
                 >
-                  <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <List className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-            {/* Firm and Location Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 overflow-x-auto pb-2">
-              {/* Firm Filter */}
-              <div className="flex flex-wrap gap-2 whitespace-nowrap">
+            {/* FILTER ROWS */}
+            <div className="flex flex-col gap-3">
+              {/* -------- FIRM FILTER (RESTORED) -------- */}
+              <div className="flex gap-2 overflow-x-auto pb-2">
                 <Button
                   size="sm"
                   variant={selectedFirm === "All" ? "default" : "outline"}
-                  onClick={() => {
-                    setSelectedFirm("All");
-                    track("FirmFilterChanged", { firm: "All" });
-                  }}
-                  className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedFirm === "All"
-                    ? "bg-electric-teal hover:bg-deep-teal text-white"
-                    : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                    }`}
+                  onClick={() => setSelectedFirm("All")}
                 >
-                  All
+                  All Firms
                 </Button>
+
                 {firmsList.slice(0, 10).map((firm) => (
                   <Button
                     key={firm}
                     size="sm"
                     variant={selectedFirm === firm ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedFirm(firm);
-                      track("FirmFilterChanged", { firm });
-                    }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedFirm === firm
-                      ? "bg-electric-teal hover:bg-deep-teal text-white"
-                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                      }`}
+                    onClick={() => setSelectedFirm(firm)}
+                    className="whitespace-nowrap"
                   >
                     {firm}
                   </Button>
                 ))}
               </div>
 
-              {/* Location Filter */}
-              <div className="flex flex-wrap gap-2 whitespace-nowrap">
+              {/* -------- LOCATION FILTER -------- */}
+              <div className="flex gap-2 overflow-x-auto pb-2">
                 <Button
                   size="sm"
                   variant={selectedLocation === "All" ? "default" : "outline"}
-                  onClick={() => {
-                    setSelectedLocation("All");
-                    track("LocationFilterChanged", { location: "All" });
-                  }}
-                  className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedLocation === "All"
-                    ? "bg-electric-teal hover:bg-deep-teal text-white"
-                    : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                    }`}
+                  onClick={() => setSelectedLocation("All")}
                 >
-                  All
+                  All Locations
                 </Button>
+
                 {statesList.map((state) => (
                   <Button
                     key={state}
                     size="sm"
                     variant={selectedLocation === state ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedLocation(state);
-                      track("LocationFilterChanged", { location: state });
-                    }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedLocation === state
-                      ? "bg-electric-teal hover:bg-deep-teal text-white"
-                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                      }`}
+                    onClick={() => setSelectedLocation(state)}
+                    className="whitespace-nowrap"
                   >
                     {state}
                   </Button>
                 ))}
               </div>
 
-              {/* Area of Law Filter */}
+              {/* -------- AREA OF LAW FILTER -------- */}
               {areasList.length > 0 && (
-                <div className="flex flex-wrap gap-2 whitespace-nowrap">
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   <Button
                     size="sm"
                     variant={selectedType === "All" ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedType("All");
-                      track("AreaFilterChanged", { area: "All" });
-                    }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedType === "All"
-                      ? "bg-electric-teal hover:bg-deep-teal text-white"
-                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                      }`}
+                    onClick={() => setSelectedType("All")}
                   >
                     All Areas
                   </Button>
+
                   {areasList.slice(0, 8).map((area) => (
                     <Button
                       key={area}
                       size="sm"
                       variant={selectedType === area ? "default" : "outline"}
-                      onClick={() => {
-                        setSelectedType(area);
-                        track("AreaFilterChanged", { area });
-                      }}
-                      className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedType === area
-                        ? "bg-electric-teal hover:bg-deep-teal text-white"
-                        : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                        }`}
+                      onClick={() => setSelectedType(area)}
+                      className="whitespace-nowrap"
                     >
                       {area}
                     </Button>
@@ -609,256 +342,84 @@ function JobPortalFunc() {
           </div>
         </section>
 
-        {/* Jobs Section */}
-        <section ref={resultsRef} className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 scroll-mt-40">
-          <div className="container mx-auto">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-12 gap-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight mb-1 sm:mb-2 animate-slide-in-left">
-                  {filteredJobs.length} {filteredJobs.length === 1 ? "Position" : "Positions"} Found
-                </h2>
-                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-warm-gray">Updated Daily</p>
-              </div>
-            </div>
+        {/* ---------------- JOBS ---------------- */}
+        <section className="py-12 px-4 sm:px-6">
+          {viewMode === "grid" ? (
+            <div
+              className="
+                grid
+                gap-4
+                [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))] 
+                sm:[grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]
+              "
+            >
+              {filteredJobs.map((job) => (
+                <Card
+                  key={job.id}
+                  onClick={() => handleJobClick(job)}
+                  className="cursor-pointer hover:shadow-xl transition overflow-hidden"
+                >
+                  <CardContent className="p-4 sm:p-5">
+                    <h3 className="font-black text-base sm:text-lg truncate">
+                      {job.firmName}
+                    </h3>
 
-            {viewMode === "grid" ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {filteredJobs.map((job, index) => (
-                  <div
-                    key={job.id}
-                    id={`card-${job.id}`}
-                    data-card
-                    className={`group flex flex-col h-full transition-all duration-700 animate-scale-in`}
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div onClick={() => handleJobClick(job)} className="flex-1">
-                      <div className="relative h-full">
-                        <Card className="group h-full border-2 border-charcoal/10 bg-surface hover:bg-white shadow-lg hover:shadow-2xl rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:border-electric-teal cursor-pointer">
-                          <CardContent className="p-4 sm:p-6 md:p-8 flex flex-col h-full">
-                            {/* Header */}
-                            <div className="flex justify-between items-start mb-4 sm:mb-6 gap-2">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight leading-tight mb-1 sm:mb-2 group-hover:text-electric-teal transition-colors truncate">
-                                  {job.firmName}
-                                </h3>
-                                <p className="text-xs sm:text-sm font-bold text-warm-gray uppercase tracking-wider truncate">
-                                  {job.jobtitle}
-                                </p>
-                              </div>
-                              <Badge className="bg-soft-teal text-electric-teal border-electric-teal/20 font-black uppercase tracking-widest text-[7px] sm:text-[8px] px-2 sm:px-3 py-0.5 sm:py-1 shrink-0 animate-bounce-gentle">
-                                {job.jobType === "Summer Internship" ? "SUMMER" : "PROGRAM"}
-                              </Badge>
-                            </div>
+                    <p className="mt-1 text-sm text-warm-gray line-clamp-2 sm:truncate">
+                      {job.jobTitle}
+                    </p>
 
-                            {/* Meta Info */}
-                            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
-                              <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-warm-gray hover:translate-x-1 transition-transform">
-                                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-electric-teal shrink-0" />
-                                <span className="font-bold uppercase tracking-wide text-[10px] sm:text-[11px] truncate">
-                                  {job.location}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-warm-gray hover:translate-x-1 transition-transform">
-                                <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 text-ai-violet shrink-0" />
-                                <span className="font-bold uppercase tracking-wide text-[10px] sm:text-[11px] truncate">
-                                  {job.salary || "Not Specified"}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-warm-gray hover:translate-x-1 transition-transform">
-                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-warm-pop shrink-0" />
-                                <span className="font-bold uppercase tracking-wide text-[10px] sm:text-[11px] truncate">
-                                  Due: {job.applicationDeadline || "Not Specified"}
-                                </span>
-                              </div>
-                            </div>
+                    <div className="mt-3 space-y-2 text-xs text-warm-gray">
+                      <div className="flex items-start gap-2 min-w-0">
+                        <MapPin className="w-3.5 h-3.5 shrink-0 mt-[2px]" />
+                        <span className="min-w-0 break-words">
+                          {job.location}
+                        </span>
+                      </div>
 
-                            {/* Tags */}
-                            <div className="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6">
-                              {job?.tags?.length > 0 ? job?.tags.slice(0, 2).map((tag) => (
-                                <Badge
-                                  key={tag}
-                                  variant="outline"
-                                  className="border-charcoal/10 text-charcoal font-bold uppercase tracking-widest text-[7px] sm:text-[8px] px-1.5 sm:px-2 py-0.5 sm:py-1 hover:border-electric-teal hover:text-electric-teal transition-colors"
-                                >
-                                  {tag}
-                                </Badge>
-                              )) : ""}
-                            </div>
-
-                            {/* Description */}
-                            <p className="text-xs sm:text-sm leading-relaxed font-medium text-warm-gray mb-4 sm:mb-6 line-clamp-2 sm:line-clamp-3">
-                              {job.jobDescription || "Not available"}
-                            </p>
-
-                            {/* Footer */}
-                            <div className="mt-auto flex items-center justify-end pt-4 sm:pt-6 border-t border-charcoal/5">
-                              {/* <div className="flex items-center gap-1 sm:gap-2">
-                                <Users className="w-3 h-3 sm:w-4 sm:h-4 text-warm-gray" />
-                                <span className="text-[9px] sm:text-xs font-black uppercase tracking-widest text-warm-gray">
-                                  {job.jobApplicants || 0}
-                                </span>
-                              </div> */}
-                              <div className="flex items-center gap-1 sm:gap-2 text-electric-teal font-black uppercase tracking-widest text-[9px] sm:text-xs group-hover:gap-3 sm:group-hover:gap-4 transition-all">
-                                View
-                                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                        {/* <div onClick={(e) => e.stopPropagation()} className="absolute top-0 left-0 w-full h-full">
-                          <JobCardAIButtons job={job} isOverlay={true} />
-                        </div> */}
+                      <div className="flex items-start gap-2 min-w-0">
+                        <Clock className="w-3.5 h-3.5 shrink-0 mt-[2px]" />
+                        <span className="min-w-0 break-words">
+                          {job.applicationDeadline || "Rolling"}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <JobListView navigate={navigate} handleJobClick={handleJobClick} tempResume={tempResume} jobs={filteredJobs} />
-            )}
 
-            {!loading && filteredJobs.length === 0 && (
-              <div className="text-center py-12 sm:py-20 animate-scale-in">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-soft-teal rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 animate-float">
-                  <Search className="w-8 h-8 sm:w-10 sm:h-10 text-electric-teal" />
-                </div>
-                <h3 className="text-2xl sm:text-3xl md:text-7xl font-black uppercase tracking-tight mb-2 sm:mb-4">
-                  No Matches Found
-                </h3>
-                <p className="text-sm sm:text-lg md:text-xl font-bold uppercase tracking-wider text-warm-cream/60 mb-8 md:mb-12">
-                  Try adjusting your filters
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-electric-teal/80">
+                        Tap to open
+                      </span>
 
-        {/* CTA Section */}
-        <section className="py-16 sm:py-20 md:py-24 px-4 sm:px-6 bg-charcoal text-warm-cream rounded-t-3xl sm:rounded-t-[4rem]">
-          <div className="container mx-auto text-center">
-            <div className="max-w-3xl mx-auto">
-              <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-electric-teal mx-auto mb-4 sm:mb-6 animate-bounce-gentle" />
-              <h2 className="text-3xl sm:text-5xl md:text-7xl font-black uppercase tracking-tighter mb-6 md:mb-8 leading-[0.9] animate-slide-in-up">
-                Get The <span className="text-electric-teal animate-pulse-glow inline-block">Competitive Edge</span>
-              </h2>
-              <p className="text-sm sm:text-lg md:text-xl font-bold uppercase tracking-wider text-warm-cream/60 mb-8 md:mb-12">
-                AI-Powered Resume Optimization / Instant Firm Intelligence
-              </p>
-              <Button className="h-14 sm:h-16 md:h-20 px-8 sm:px-12 md:px-16 rounded-xl sm:rounded-2xl md:rounded-[2rem] bg-electric-teal hover:bg-deep-teal text-white font-black uppercase tracking-widest text-xs sm:text-sm md:text-sm shadow-2xl shadow-electric-teal/30 transition-all hover:scale-105 active:scale-95 animate-bounce-gentle w-full sm:w-auto">
-                Unlock Premium Access
-                <ArrowRight className="ml-2 sm:ml-3 w-4 h-4 sm:w-5 sm:h-5" />
-              </Button>
+                      <div className="flex items-center text-electric-teal text-xs font-black uppercase tracking-widest">
+                        View <ArrowRight className="w-3 h-3 ml-1" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </div>
+          ) : (
+            <JobListView
+              jobs={filteredJobs}
+              navigate={navigate}
+              handleJobClick={handleJobClick}
+              tempResume={tempResume}
+            />
+          )}
         </section>
 
-        <style jsx global>{`
-          @keyframes fade-in-up {
-            from {
-              opacity: 0;
-              transform: translateY(20px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-
-          .animate-slide-in-up {
-            animation: fade-in-up 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-          }
-
-          @keyframes blob-float {
-            0%, 100% {
-              transform: translateY(0);
-            }
-            50% {
-              transform: translateY(-20px);
-            }
-          }
-
-          .animate-blob-float {
-            animation: blob-float 5s ease-in-out infinite;
-          }
-
-          @keyframes blob-rotate {
-            0% {
-              transform: rotate(0deg);
-            }
-            100% {
-              transform: rotate(360deg);
-            }
-          }
-
-          .animate-blob-rotate {
-            animation: blob-rotate 10s linear infinite;
-          }
-
-          @keyframes scale-in {
-            from {
-              transform: scale(0.9);
-              opacity: 0;
-            }
-            to {
-              transform: scale(1);
-              opacity: 1;
-            }
-          }
-
-          .animate-scale-in {
-            animation: scale-in 0.5s ease-in-out;
-          }
-
-          @keyframes float {
-            0%, 100% {
-              transform: translateY(0);
-            }
-            50% {
-              transform: translateY(10px);
-            }
-          }
-
-          .animate-float {
-            animation: float 3s ease-in-out infinite;
-          }
-
-          @keyframes bounce-gentle {
-            0%, 100% {
-              transform: translateY(0);
-            }
-            50% {
-              transform: translateY(-5px);
-            }
-          }
-
-          .animate-bounce-gentle {
-            animation: bounce-gentle 1s ease-in-out infinite;
-          }
-
-          @keyframes pulse-glow {
-            0%, 100% {
-              filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
-            }
-            50% {
-              filter: drop-shadow(0 0 15px rgba(0, 255, 255, 1));
-            }
-          }
-
-          .animate-pulse-glow {
-            animation: pulse-glow 2s ease-in-out infinite;
-          }
-        `}</style>
+        {/* ---------------- CTA ---------------- */}
+        <section className="bg-charcoal text-warm-cream py-16 px-4 sm:px-6 text-center">
+          <Sparkles className="w-10 h-10 mx-auto text-electric-teal mb-4" />
+          <h2 className="text-3xl sm:text-5xl font-black mb-6">
+            Get the Competitive Edge
+          </h2>
+          <Button className="bg-electric-teal text-white px-10 h-14 rounded-xl">
+            Unlock Premium
+          </Button>
+        </section>
       </div>
       {loading && <Loader fullScreen={true} text="Loading opportunities..." />}
       <Footer />
     </>
-  );
-}
-
-export default function JobPortal() {
-  return (
-    <Suspense fallback={null}>
-      <JobPortalFunc />
-    </Suspense>
   );
 }

@@ -128,22 +128,14 @@ export default {
 						height: '0'
 					}
 				},
-				'float': {
+				float: {
 					'0%, 100%': { transform: 'translateY(0px)' },
-					'50%': { transform: 'translateY(-20px)' }
+					'50%': { transform: 'translateY(-20px)' },
 				},
-				'shimmer': {
-					'0%': { backgroundPosition: '-200% 0' },
-					'100%': { backgroundPosition: '200% 0' }
+				'float-delayed': {
+					'0%, 100%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-15px)' },
 				},
-				'fade-in': {
-					'from': { opacity: '0', transform: 'translateY(20px)' },
-					'to': { opacity: '1', transform: 'translateY(0)' }
-				},
-				'infinite-scroll': {
-					'from': { transform: 'translateX(0)' },
-					'to': { transform: 'translateX(-50%)' }
-				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -152,8 +144,13 @@ export default {
 				'float-delayed': 'float 6s ease-in-out infinite 2s',
 				'shimmer': 'shimmer 1.5s infinite',
 				'fade-in': 'fadeIn 0.3s ease-out',
-				'infinite-scroll': 'infinite-scroll 40s linear infinite'
-			}
+				float: 'float 6s ease-in-out infinite',
+				'float-delayed': 'float-delayed 8s ease-in-out infinite 2s',
+
+				shimmer: 'shimmer 1.5s infinite',
+				'fade-in': 'fadeIn 0.3s ease-out',
+			},
+
 		}
 	},
 	plugins: [require("tailwindcss-animate")],

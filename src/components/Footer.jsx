@@ -1,4 +1,5 @@
 import { Zap, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
 import logoLight from "@/assets/rizzource-logo-light.png";
 import logoDark from "@/assets/rizzource-logo-dark.png";
@@ -29,10 +30,27 @@ const Footer = () => {
           <div className="space-y-6">
             <h4 className="font-black uppercase tracking-widest text-xs text-electric-teal">Resources</h4>
             <ul className="space-y-4 font-bold uppercase tracking-widest text-[10px] text-warm-cream/40">
-              <li className="hover:text-warm-cream cursor-pointer transition-colors">Job Search</li>
-              <li className="hover:text-warm-cream cursor-pointer transition-colors">Resume AI</li>
-              <li className="hover:text-warm-cream cursor-pointer transition-colors">Cover Letters</li>
-              <li className="hover:text-warm-cream cursor-pointer transition-colors">Career Guide</li>
+              <li>
+                <Link
+                  to="/jobs"
+                  onClick={() => setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)}
+                  className="hover:text-warm-cream cursor-pointer transition-colors block"
+                >
+                  Job Search
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/jobs?resume=true"
+                  onClick={() => setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)}
+                  className="hover:text-warm-cream cursor-pointer transition-colors block"
+                >
+                  Resume AI
+                </Link>
+              </li>
+              <li>
+                <Link to="/cover-letter/generator" className="hover:text-warm-cream cursor-pointer transition-colors block">Cover Letter</Link>
+              </li>
             </ul>
           </div>
 
@@ -41,23 +59,17 @@ const Footer = () => {
             <h4 className="font-black uppercase tracking-widest text-xs text-ai-violet">Connect</h4>
             <ul className="space-y-4 font-bold uppercase tracking-widest text-[10px] text-warm-cream/40">
               <li className="hover:text-warm-cream cursor-pointer transition-colors">
-                <div className="flex items-center gap-2">
+                <a
+                  href="https://mail.google.com/mail/?view=cm&fs=1&to=support@rizzource.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
                   <Mail className="w-3 h-3" />
                   <span>Support</span>
-                </div>
+                </a>
               </li>
-              <li className="hover:text-warm-cream cursor-pointer transition-colors">Twitter (X)</li>
-              <li className="hover:text-warm-cream cursor-pointer transition-colors">LinkedIn</li>
-              <li className="hover:text-warm-cream cursor-pointer transition-colors">Discord</li>
             </ul>
-            <div className="pt-4">
-              <a
-                href="mailto:support@rizzource.com"
-                className="text-sm text-warm-cream/60 hover:text-electric-teal transition-colors font-medium"
-              >
-                support@rizzource.com
-              </a>
-            </div>
           </div>
         </div>
 

@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Sparkles, Zap, Shield, Trophy, Briefcase, TrendingUp, Users } from 'lucide-react';
+import { Loader2, Sparkles, Zap, Shield, Trophy, TrendingUp, Users } from 'lucide-react';
 
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -210,7 +210,7 @@ const Auth = () => {
 
       {/* Animated Background Blobs */}
       <div
-        className="fixed inset-0 pointer-events-none z-0 opacity-40 transition-transform duration-700 ease-out"
+        className="fixed inset-0 pointer-events-none z-0 opacity-40 transition-transform duration-700 ease-out hidden md:block"
         style={{
           transform: `translate(${(mousePos.x - (typeof window !== "undefined" ? window.innerWidth : 1920) / 2) * 0.015}px, ${(mousePos.y - (typeof window !== "undefined" ? window.innerHeight : 1080) / 2) * 0.015}px)`,
         }}
@@ -220,22 +220,22 @@ const Auth = () => {
         <div className="absolute top-[50%] left-[40%] w-64 h-64 bg-butter-yellow/20 rounded-full blur-[100px] animate-pulse" />
       </div>
 
-      <main className="flex-1 flex items-center justify-center pt-24 pb-16 px-6 relative z-10">
-        <div className="container mx-auto max-w-7xl">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <main className="flex-1 flex items-center justify-center pt-20 sm:pt-24 pb-10 sm:pb-16 px-4 sm:px-6 relative z-10">
+        <div className="container mx-auto max-w-7xl w-full">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
 
             {/* LEFT SIDE - HERO */}
-            <div className="space-y-10 text-center lg:text-left animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              
+            <div className="space-y-8 sm:space-y-10 text-center lg:text-left animate-in fade-in slide-in-from-bottom-8 duration-1000">
+
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-soft-teal border border-electric-teal/20 text-deep-teal font-black uppercase tracking-[0.2em] text-[10px]">
+              <div className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 rounded-full bg-soft-teal border border-electric-teal/20 text-deep-teal font-black uppercase tracking-[0.2em] text-[10px]">
                 <Sparkles className="h-3 w-3 animate-pulse" />
                 Join the 1% Club
               </div>
 
               {/* Title */}
               <div>
-                <h1 className="text-6xl md:text-8xl font-black leading-[0.85] tracking-tighter text-charcoal mb-6 uppercase">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black leading-[0.9] sm:leading-[0.85] tracking-tighter text-charcoal mb-5 sm:mb-6 uppercase">
                   Your <br />
                   <span className="relative inline-block">
                     BigLaw
@@ -252,25 +252,25 @@ const Auth = () => {
                   Starts Here
                 </h1>
 
-                <p className="text-xl text-warm-gray font-bold uppercase tracking-wider max-w-lg mx-auto lg:mx-0">
+                <p className="text-base sm:text-lg md:text-xl text-warm-gray font-bold uppercase tracking-wider max-w-lg mx-auto lg:mx-0">
                   AI-Powered Tools. Expert Resources. BigLaw Results.
                 </p>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto lg:mx-0">
+              <div className="grid grid-cols-3 gap-3 sm:gap-4 max-w-lg mx-auto lg:mx-0">
                 {stats.map((stat, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className="relative group"
                     style={{ animationDelay: `${i * 100}ms` }}
                   >
-                    <div className="relative bg-white rounded-2xl p-4 border-2 border-charcoal/10 group-hover:border-electric-teal/50 transition-all duration-300 group-hover:shadow-xl">
+                    <div className="relative bg-white rounded-2xl p-3 sm:p-4 border-2 border-charcoal/10 group-hover:border-electric-teal/50 transition-all duration-300 group-hover:shadow-xl">
                       <div className="absolute inset-0 bg-gradient-to-br from-electric-teal/5 to-ai-violet/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div className="relative">
-                        <stat.icon className="h-6 w-6 text-electric-teal mb-2 mx-auto lg:mx-0" />
-                        <div className="text-2xl font-black text-charcoal">{stat.value}</div>
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-warm-gray">{stat.label}</div>
+                        <stat.icon className="h-5 w-5 sm:h-6 sm:w-6 text-electric-teal mb-2 mx-auto lg:mx-0" />
+                        <div className="text-xl sm:text-2xl font-black text-charcoal">{stat.value}</div>
+                        <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-warm-gray">{stat.label}</div>
                       </div>
                     </div>
                   </div>
@@ -278,22 +278,22 @@ const Auth = () => {
               </div>
 
               {/* Social Proof */}
-              <div className="flex items-center gap-4 justify-center lg:justify-start">
+              <div className="flex items-center gap-3 sm:gap-4 justify-center lg:justify-start">
                 <div className="flex -space-x-3">
                   {[1, 2, 3, 4].map((i) => (
                     <div
                       key={i}
-                      className="w-12 h-12 rounded-full border-4 border-warm-cream bg-soft-teal flex items-center justify-center text-electric-teal font-black"
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-4 border-warm-cream bg-soft-teal flex items-center justify-center text-electric-teal font-black"
                     >
                       {String.fromCharCode(64 + i)}
                     </div>
                   ))}
                 </div>
                 <div className="text-left">
-                  <div className="text-sm font-black uppercase tracking-wider text-charcoal">
+                  <div className="text-xs sm:text-sm font-black uppercase tracking-wider text-charcoal">
                     Join 847+ Law Students
                   </div>
-                  <div className="text-xs font-medium text-warm-gray">
+                  <div className="text-[11px] sm:text-xs font-medium text-warm-gray">
                     Who landed V100 positions
                   </div>
                 </div>
@@ -301,41 +301,40 @@ const Auth = () => {
             </div>
 
             {/* RIGHT SIDE - AUTH FORM */}
-            <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
-              <Card className="border-none bg-white/95 backdrop-blur-xl shadow-2xl rounded-[3rem] overflow-hidden">
-                
-                <CardHeader className="text-center p-10 bg-gradient-to-br from-electric-teal/5 via-transparent to-ai-violet/5 relative">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-electric-teal/10 rounded-full blur-[60px]" />
+            <div className="animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200 w-full">
+              <Card className="border-none bg-white/95 backdrop-blur-xl shadow-2xl rounded-[2rem] sm:rounded-[3rem] overflow-hidden w-full max-w-xl mx-auto">
+                <CardHeader className="text-center p-7 sm:p-10 bg-gradient-to-br from-electric-teal/5 via-transparent to-ai-violet/5 relative">
+                  <div className="absolute top-0 right-0 w-28 h-28 sm:w-32 sm:h-32 bg-electric-teal/10 rounded-full blur-[60px]" />
                   <div className="relative">
-                    <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-electric-teal to-deep-teal flex items-center justify-center shadow-xl shadow-electric-teal/30">
-                      <Shield className="h-8 w-8 text-white" />
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-5 sm:mb-6 rounded-2xl bg-gradient-to-br from-electric-teal to-deep-teal flex items-center justify-center shadow-xl shadow-electric-teal/30">
+                      <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
                     </div>
-                    <CardTitle className="text-3xl font-black uppercase tracking-tight mb-2">
+                    <CardTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight mb-2">
                       {activeTab === "signin" ? "Welcome Back" : "Join RIZZource"}
                     </CardTitle>
-                    <CardDescription className="text-warm-gray font-medium">
-                      {activeTab === "signin" 
-                        ? "Continue your BigLaw journey" 
+                    <CardDescription className="text-warm-gray font-medium text-sm sm:text-base">
+                      {activeTab === "signin"
+                        ? "Continue your BigLaw journey"
                         : "Start your path to V100 firms"}
                     </CardDescription>
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-10">
+                <CardContent className="p-6 sm:p-10">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    
+
                     {/* Tab Selector */}
-                    <TabsList className="grid grid-cols-2 mb-8 p-2 bg-warm-cream rounded-2xl h-14">
+                    <TabsList className="grid grid-cols-2 mb-7 sm:mb-8 p-2 bg-warm-cream rounded-2xl h-12 sm:h-14">
                       <TabsTrigger
                         value="signin"
-                        className="data-[state=active]:bg-charcoal data-[state=active]:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all duration-300 data-[state=active]:shadow-lg"
+                        className="data-[state=active]:bg-charcoal data-[state=active]:text-white rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all duration-300 data-[state=active]:shadow-lg"
                       >
                         Sign In
                       </TabsTrigger>
 
                       <TabsTrigger
                         value="signup"
-                        className="data-[state=active]:bg-charcoal data-[state=active]:text-white rounded-xl font-bold uppercase tracking-wider text-xs transition-all duration-300 data-[state=active]:shadow-lg"
+                        className="data-[state=active]:bg-charcoal data-[state=active]:text-white rounded-xl font-bold uppercase tracking-wider text-[11px] sm:text-xs transition-all duration-300 data-[state=active]:shadow-lg"
                       >
                         Sign Up
                       </TabsTrigger>
@@ -345,14 +344,14 @@ const Auth = () => {
                     <TabsContent value="signin" className="space-y-6">
                       <form onSubmit={handleSignIn} className="space-y-5">
                         <div>
-                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                          <Label className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
                             Email
                           </Label>
-                          <Input 
-                            name="email" 
-                            type="email" 
-                            required 
-                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                          <Input
+                            name="email"
+                            type="email"
+                            required
+                            className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
                                      transition-all"
                             placeholder="your@email.com"
@@ -360,24 +359,24 @@ const Auth = () => {
                         </div>
 
                         <div>
-                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                          <Label className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
                             Password
                           </Label>
-                          <Input 
-                            name="password" 
-                            type="password" 
-                            required 
-                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                          <Input
+                            name="password"
+                            type="password"
+                            required
+                            className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
                                      transition-all"
                             placeholder="••••••••"
                           />
                         </div>
 
-                        <Button 
-                          disabled={loading} 
-                          className="w-full h-14 rounded-xl bg-charcoal hover:bg-deep-teal text-white 
-                                   font-black uppercase tracking-widest text-sm
+                        <Button
+                          disabled={loading}
+                          className="w-full h-12 sm:h-14 rounded-xl bg-charcoal hover:bg-deep-teal text-white
+                                   font-black uppercase tracking-widest text-xs sm:text-sm
                                    shadow-lg shadow-charcoal/20
                                    transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
                                    group relative overflow-hidden"
@@ -413,9 +412,9 @@ const Auth = () => {
                           variant="outline"
                           onClick={handleGoogleAuth}
                           disabled={!googleReady || loading}
-                          className="w-full h-14 rounded-xl border-2 border-charcoal/20 bg-white
+                          className="w-full h-12 sm:h-14 rounded-xl border-2 border-charcoal/20 bg-white
                                    hover:bg-soft-teal hover:border-electric-teal
-                                   font-bold uppercase tracking-wider text-sm
+                                   font-bold uppercase tracking-wider text-xs sm:text-sm
                                    transition-all duration-300 hover:scale-[1.02]
                                    flex items-center justify-center"
                         >
@@ -424,7 +423,7 @@ const Auth = () => {
                           ) : (
                             <GoogleIcon />
                           )}
-                          <span>Continue with Google</span>
+                          <span className="text-center">Continue with Google</span>
                         </Button>
                       </form>
                     </TabsContent>
@@ -433,14 +432,14 @@ const Auth = () => {
                     <TabsContent value="signup" className="space-y-6">
                       <form onSubmit={handleSignUp} className="space-y-5">
                         <div>
-                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                          <Label className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
                             Email
                           </Label>
-                          <Input 
-                            name="email" 
-                            type="email" 
-                            required 
-                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                          <Input
+                            name="email"
+                            type="email"
+                            required
+                            className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
                                      transition-all"
                             placeholder="your@email.com"
@@ -448,14 +447,14 @@ const Auth = () => {
                         </div>
 
                         <div>
-                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                          <Label className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
                             Password
                           </Label>
-                          <Input 
-                            name="password" 
-                            type="password" 
-                            required 
-                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                          <Input
+                            name="password"
+                            type="password"
+                            required
+                            className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
                                      transition-all"
                             placeholder="Min. 6 characters"
@@ -463,25 +462,25 @@ const Auth = () => {
                         </div>
 
                         <div>
-                          <Label className="text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
+                          <Label className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-charcoal mb-2 block">
                             Confirm Password
                           </Label>
-                          <Input 
-                            name="confirmPassword" 
-                            type="password" 
-                            required 
-                            className="h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
+                          <Input
+                            name="confirmPassword"
+                            type="password"
+                            required
+                            className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
                                      transition-all"
                             placeholder="Re-enter password"
                           />
                         </div>
 
-                        <Button 
-                          disabled={loading} 
-                          className="w-full h-14 rounded-xl 
+                        <Button
+                          disabled={loading}
+                          className="w-full h-12 sm:h-14 rounded-xl
                                    bg-gradient-to-r from-electric-teal to-deep-teal text-white
-                                   font-black uppercase tracking-widest text-sm
+                                   font-black uppercase tracking-widest text-xs sm:text-sm
                                    shadow-lg shadow-electric-teal/30
                                    transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
                                    group relative overflow-hidden"
@@ -517,9 +516,9 @@ const Auth = () => {
                           variant="outline"
                           onClick={handleGoogleAuth}
                           disabled={!googleReady || loading}
-                          className="w-full h-14 rounded-xl border-2 border-charcoal/20 bg-white
+                          className="w-full h-12 sm:h-14 rounded-xl border-2 border-charcoal/20 bg-white
                                    hover:bg-soft-teal hover:border-electric-teal
-                                   font-bold uppercase tracking-wider text-sm
+                                   font-bold uppercase tracking-wider text-xs sm:text-sm
                                    transition-all duration-300 hover:scale-[1.02]
                                    flex items-center justify-center"
                         >
@@ -528,7 +527,7 @@ const Auth = () => {
                           ) : (
                             <GoogleIcon />
                           )}
-                          <span>Sign up with Google</span>
+                          <span className="text-center">Sign up with Google</span>
                         </Button>
                       </form>
                     </TabsContent>
@@ -555,14 +554,15 @@ const Auth = () => {
 
                   {/* Trust Badge */}
                   <div className="mt-8 pt-6 border-t-2 border-charcoal/10">
-                    <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-warm-gray">
-                      <Shield className="h-4 w-4 text-electric-teal" />
-                      Secure & Trusted by 847+ Law Students
+                    <div className="flex items-center justify-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-warm-gray text-center">
+                      <Shield className="h-4 w-4 text-electric-teal shrink-0" />
+                      <span>Secure & Trusted by 847+ Law Students</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
+
           </div>
         </div>
       </main>
