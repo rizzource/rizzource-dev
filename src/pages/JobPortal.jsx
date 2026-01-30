@@ -32,7 +32,7 @@ import { Toaster } from "sonner";
 import { track } from "@/lib/analytics";
 import { usePostHog } from "posthog-js/react";
 
-function JobPortalFunc() {
+export default function JobPortal() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const posthog = usePostHog();
@@ -43,19 +43,11 @@ function JobPortalFunc() {
 
   const [scrollY, setScrollY] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedFirm, setSelectedFirm] = useState("All");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedType, setSelectedType] = useState("All");
   const [viewMode, setViewMode] = useState("grid");
   const [showResumeUpload, setShowResumeUpload] = useState(false);
-  const [isSearchBarSticky, setIsSearchBarSticky] = useState(false);
-
-  // Refs for scroll behavior
-  const resultsRef = useRef(null);
-  const searchBarRef = useRef(null);
-  const searchBarStickyOffset = useRef(0);
-  const searchDebounceTimer = useRef(null);
 
   // ------------------------------------------------------------
   // FETCH
@@ -76,17 +68,7 @@ function JobPortalFunc() {
 
   // Scroll animation helper
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScroll = window.scrollY;
-      setScrollY(currentScroll);
-      
-      // Detect if search bar should be sticky
-      if (searchBarRef.current) {
-        const offset = searchBarStickyOffset.current;
-        setIsSearchBarSticky(currentScroll > offset);
-      }
-    };
-    
+    const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -418,7 +400,7 @@ function JobPortalFunc() {
           </Button>
         </section>
       </div>
-      {loading && <Loader fullScreen={true} text="Loading opportunities..." />}
+
       <Footer />
     </>
   );
