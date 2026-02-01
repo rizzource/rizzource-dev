@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from "react-redux";
-import { loginUser, registerUser, googleLogin } from "@/redux/slices/userApiSlice";
+import { loginUser, registerUser, googleLogin, getUserById } from "@/redux/slices/userApiSlice";
 import { useNavigate } from "react-router-dom";
 import { usePostHog } from 'posthog-js/react';
 
@@ -25,6 +25,7 @@ const Auth = () => {
   const [googleReady, setGoogleReady] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeTab, setActiveTab] = useState("signin");
+  const [isValidating, setIsValidating] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -47,36 +48,76 @@ const Auth = () => {
   // Redirect after login
   useEffect(() => {
     if (user) {
+      // Identify user with PostHog
+      const userId = user.id || user.user_id || user.userId || user.email;
+      const userName = user.name || user.full_name || `${user.firstName} ${user.lastName}` || "User";
+
       posthog?.identify(
-        user.id || user.userId || user.email,
+        userId,
         {
           email: user.email,
-          name: user.name || `${user.firstName} ${user.lastName}`,
+          name: userName,
         }
       );
+
+      // Fetch full user data if we have user_id
+      if (user.user_id || user.id) {
+        dispatch(getUserById({ user_id: user.user_id || user.id }));
+      }
 
       const returnTo = window.history.state?.usr?.returnTo;
       navigate(returnTo || "/");
     }
-  }, [user, navigate, posthog]);
+  }, [user, navigate, posthog, dispatch]);
 
   // EMAIL/PASSWORD LOGIN
   const handleSignIn = async (e) => {
     e.preventDefault();
     setLocalError("");
     setSuccess("");
+    setIsValidating(true);
 
-    const form = new FormData(e.target);
-    const Email = form.get("email");
-    const Password = form.get("password");
+    try {
+      const form = new FormData(e.target);
+      const email = form.get("email");
+      const password = form.get("password");
 
-    const result = await dispatch(loginUser({ Email, Password }));
+      // Validate inputs
+      if (!email || !password) {
+        setLocalError("Email and password are required");
+        posthog?.capture('login_failed', {
+          method: 'email',
+          error_type: 'missing_fields'
+        });
+        setIsValidating(false);
+        return;
+      }
 
-    if (result.error) {
-      setLocalError("Invalid email or password");
-      posthog?.capture('login_failed', { method: 'email', error_type: 'invalid_credentials' });
-    } else {
-      posthog?.capture('login_succeeded', { method: 'email' });
+      // Call loginUser with email and password
+      const result = await dispatch(loginUser({
+        email,
+        password
+      }));
+
+      if (result.error) {
+        setLocalError(result.payload || "Invalid email or password");
+        posthog?.capture('login_failed', {
+          method: 'email',
+          error_type: 'invalid_credentials'
+        });
+      } else {
+        posthog?.capture('login_succeeded', { method: 'email' });
+        setSuccess("Login successful! Redirecting...");
+      }
+    } catch (err) {
+      console.error("Sign in error:", err);
+      setLocalError("An unexpected error occurred. Please try again.");
+      posthog?.capture('login_failed', {
+        method: 'email',
+        error_type: 'unexpected_error'
+      });
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -106,7 +147,11 @@ const Auth = () => {
     setSuccess("");
 
     if (!window.google?.accounts?.oauth2) {
-      setLocalError("Google OAuth not loaded.");
+      setLocalError("Google OAuth not loaded. Please refresh the page.");
+      posthog?.capture('login_failed', {
+        method: 'google',
+        error_type: 'oauth_not_loaded'
+      });
       return;
     }
 
@@ -120,20 +165,42 @@ const Auth = () => {
         redirect_uri: "postmessage",
         callback: async (response) => {
           try {
+            setIsValidating(true);
             const code = response.code;
+
+            if (!code) {
+              setLocalError("Google authentication failed. No code received.");
+              posthog?.capture('login_failed', {
+                method: 'google',
+                error_type: 'no_auth_code'
+              });
+              setIsValidating(false);
+              return;
+            }
+
+            // Call googleLogin with code
             const result = await dispatch(googleLogin({ code }));
 
             if (result.error) {
               console.error("Google login failed:", result.error);
-              setLocalError("Google login failed.");
-              posthog?.capture('login_failed', { method: 'google', error_type: 'google_auth_error' });
+              setLocalError(result.payload || "Google login failed. Please try again.");
+              posthog?.capture('login_failed', {
+                method: 'google',
+                error_type: 'google_auth_error'
+              });
             } else {
               posthog?.capture('login_succeeded', { method: 'google' });
+              setSuccess("Google login successful! Redirecting...");
             }
+            setIsValidating(false);
           } catch (err) {
             console.error("Google callback error:", err);
-            setLocalError("Google login failed.");
-            posthog?.capture('login_failed', { method: 'google', error_type: 'callback_error' });
+            setLocalError("Google login failed. Please try again.");
+            posthog?.capture('login_failed', {
+              method: 'google',
+              error_type: 'callback_error'
+            });
+            setIsValidating(false);
           }
         },
       });
@@ -141,8 +208,11 @@ const Auth = () => {
       client.requestCode();
     } catch (err) {
       console.error("Google OAuth init error:", err);
-      setLocalError("Google sign-in failed.");
-      posthog?.capture('login_failed', { method: 'google', error_type: 'init_error' });
+      setLocalError("Google sign-in initialization failed. Please try again.");
+      posthog?.capture('login_failed', {
+        method: 'google',
+        error_type: 'init_error'
+      });
     }
   };
 
@@ -151,44 +221,97 @@ const Auth = () => {
     e.preventDefault();
     setLocalError("");
     setSuccess("");
+    setIsValidating(true);
 
-    const form = new FormData(e.target);
-    const Email = form.get("email");
-    const Password = form.get("password");
-    const Confirm = form.get("confirmPassword");
+    try {
+      const form = new FormData(e.target);
+      const email = form.get("email");
+      const password = form.get("password");
+      const confirmPassword = form.get("confirmPassword");
 
-    posthog?.capture('signup_started', { method: 'email' });
+      posthog?.capture('signup_started', { method: 'email' });
 
-    if (Password !== Confirm) {
-      setLocalError("Passwords do not match");
-      posthog?.capture('signup_failed', { method: 'email', error_type: 'password_mismatch' });
-      return;
+      // Validation
+      if (!email || !password || !confirmPassword) {
+        setLocalError("All fields are required");
+        posthog?.capture('signup_failed', {
+          method: 'email',
+          error_type: 'missing_fields'
+        });
+        setIsValidating(false);
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setLocalError("Passwords do not match");
+        posthog?.capture('signup_failed', {
+          method: 'email',
+          error_type: 'password_mismatch'
+        });
+        setIsValidating(false);
+        return;
+      }
+
+      if (password.length < 6) {
+        setLocalError("Password must be at least 6 characters long");
+        posthog?.capture('signup_failed', {
+          method: 'email',
+          error_type: 'password_too_short'
+        });
+        setIsValidating(false);
+        return;
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setLocalError("Please enter a valid email address");
+        posthog?.capture('signup_failed', {
+          method: 'email',
+          error_type: 'invalid_email'
+        });
+        setIsValidating(false);
+        return;
+      }
+
+      // Prepare payload with new API structure
+      const payload = {
+        full_name: "User Account", // Default name, can be updated later
+        email,
+        password,
+      };
+
+      const result = await dispatch(registerUser(payload));
+
+      if (result.error) {
+        setLocalError(result.payload || "This email is already registered. Please try a different email.");
+        posthog?.capture('signup_failed', {
+          method: 'email',
+          error_type: 'email_already_exists'
+        });
+        setIsValidating(false);
+        return;
+      }
+
+      posthog?.capture('signup_completed', { method: 'email' });
+      setSuccess("Account created successfully! You can now sign in.");
+
+      // Clear form and switch to signin tab after a short delay
+      setTimeout(() => {
+        e.target.reset();
+        setActiveTab("signin");
+        setSuccess("");
+      }, 2000);
+    } catch (err) {
+      console.error("Sign up error:", err);
+      setLocalError("An unexpected error occurred. Please try again.");
+      posthog?.capture('signup_failed', {
+        method: 'email',
+        error_type: 'unexpected_error'
+      });
+    } finally {
+      setIsValidating(false);
     }
-
-    if (Password.length < 6) {
-      setLocalError("Password must be at least 6 characters long");
-      posthog?.capture('signup_failed', { method: 'email', error_type: 'password_too_short' });
-      return;
-    }
-
-    const payload = {
-      FirstName: "User",
-      LastName: "Account",
-      UserName: Email.split("@")[0],
-      Email,
-      Password,
-    };
-
-    const result = await dispatch(registerUser(payload));
-
-    if (result.error) {
-      setLocalError("This email is already registered.");
-      posthog?.capture('signup_failed', { method: 'email', error_type: 'email_already_exists' });
-      return;
-    }
-
-    posthog?.capture('signup_completed', { method: 'email' });
-    setSuccess("Account created successfully! You can now sign in.");
   };
 
   const GoogleIcon = () => (
@@ -351,9 +474,10 @@ const Auth = () => {
                             name="email"
                             type="email"
                             required
+                            disabled={loading || isValidating}
                             className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
-                                     transition-all"
+                                     transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="your@email.com"
                           />
                         </div>
@@ -366,22 +490,23 @@ const Auth = () => {
                             name="password"
                             type="password"
                             required
+                            disabled={loading || isValidating}
                             className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
-                                     transition-all"
+                                     transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="••••••••"
                           />
                         </div>
 
                         <Button
-                          disabled={loading}
+                          disabled={loading || isValidating}
                           className="w-full h-12 sm:h-14 rounded-xl bg-charcoal hover:bg-deep-teal text-white
                                    font-black uppercase tracking-widest text-xs sm:text-sm
                                    shadow-lg shadow-charcoal/20
                                    transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
-                                   group relative overflow-hidden"
+                                   group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
-                          {loading ? (
+                          {loading || isValidating ? (
                             <>
                               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                               Signing In...
@@ -411,14 +536,14 @@ const Auth = () => {
                           type="button"
                           variant="outline"
                           onClick={handleGoogleAuth}
-                          disabled={!googleReady || loading}
+                          disabled={!googleReady || loading || isValidating}
                           className="w-full h-12 sm:h-14 rounded-xl border-2 border-charcoal/20 bg-white
                                    hover:bg-soft-teal hover:border-electric-teal
                                    font-bold uppercase tracking-wider text-xs sm:text-sm
                                    transition-all duration-300 hover:scale-[1.02]
-                                   flex items-center justify-center"
+                                   flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
-                          {loading && !user ? (
+                          {loading && isValidating ? (
                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           ) : (
                             <GoogleIcon />
@@ -439,9 +564,10 @@ const Auth = () => {
                             name="email"
                             type="email"
                             required
+                            disabled={loading || isValidating}
                             className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
-                                     transition-all"
+                                     transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="your@email.com"
                           />
                         </div>
@@ -454,9 +580,10 @@ const Auth = () => {
                             name="password"
                             type="password"
                             required
+                            disabled={loading || isValidating}
                             className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
-                                     transition-all"
+                                     transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Min. 6 characters"
                           />
                         </div>
@@ -469,23 +596,24 @@ const Auth = () => {
                             name="confirmPassword"
                             type="password"
                             required
+                            disabled={loading || isValidating}
                             className="h-11 sm:h-12 rounded-xl border-2 border-charcoal/10 bg-white font-medium
                                      focus-visible:ring-electric-teal focus-visible:border-electric-teal
-                                     transition-all"
+                                     transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             placeholder="Re-enter password"
                           />
                         </div>
 
                         <Button
-                          disabled={loading}
+                          disabled={loading || isValidating}
                           className="w-full h-12 sm:h-14 rounded-xl
                                    bg-gradient-to-r from-electric-teal to-deep-teal text-white
                                    font-black uppercase tracking-widest text-xs sm:text-sm
                                    shadow-lg shadow-electric-teal/30
                                    transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
-                                   group relative overflow-hidden"
+                                   group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
-                          {loading ? (
+                          {loading || isValidating ? (
                             <>
                               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                               Creating Account...
@@ -515,14 +643,14 @@ const Auth = () => {
                           type="button"
                           variant="outline"
                           onClick={handleGoogleAuth}
-                          disabled={!googleReady || loading}
+                          disabled={!googleReady || loading || isValidating}
                           className="w-full h-12 sm:h-14 rounded-xl border-2 border-charcoal/20 bg-white
                                    hover:bg-soft-teal hover:border-electric-teal
                                    font-bold uppercase tracking-wider text-xs sm:text-sm
                                    transition-all duration-300 hover:scale-[1.02]
-                                   flex items-center justify-center"
+                                   flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
-                          {loading && !user ? (
+                          {loading && isValidating ? (
                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           ) : (
                             <GoogleIcon />
