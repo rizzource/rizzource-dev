@@ -20,6 +20,8 @@ import {
   Zap,
   X,
   RotateCcw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import Header from "@/components/Header";
@@ -45,7 +47,7 @@ function JobPortalFunc() {
   const posthog = usePostHog();
 
   // Redux state
-  const { scrappedJobs, loading, favoriteJobs, tempResume } = useSelector(
+  const { scrappedJobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h } = useSelector(
     (state) => state.userApi
   );
 
@@ -56,10 +58,14 @@ function JobPortalFunc() {
   const [selectedFirm, setSelectedFirm] = useState("All");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedType, setSelectedType] = useState("All");
+  const [selectedState, setSelectedState] = useState(""); // For API filtering
+  const [selectedPracticeArea, setSelectedPracticeArea] = useState(""); // For API filtering
+  const [selectedYearEligibility, setSelectedYearEligibility] = useState(""); // For API filtering
   const [viewMode, setViewMode] = useState("grid");
   const [animatedCards, setAnimatedCards] = useState({});
   const [showResumeUpload, setShowResumeUpload] = useState(false);
   const [isSearchBarSticky, setIsSearchBarSticky] = useState(false);
+  const [currentPageNum, setCurrentPageNum] = useState(1);
 
   // Refs for scroll behavior
   const resultsRef = useRef(null);
@@ -67,22 +73,68 @@ function JobPortalFunc() {
   const searchBarStickyOffset = useRef(0);
   const searchDebounceTimer = useRef(null);
 
+  // State mapping for API (from cities/states to state codes)
+  const stateMapping = {
+    "Georgia": "GA",
+    "Massachusetts": "MA",
+    "Illinois": "IL",
+    "New York": "NY",
+    "California": "CA",
+    "District of Columbia": "DC",
+  };
+
+  // Map UI state values to API parameters
+  const mapUIStateToAPI = (uiState) => {
+    return stateMapping[uiState] || uiState;
+  };
+
+  // Year eligibility mapping
+  const yearEligibilityMapping = {
+    "1L": "1L",
+    "2L": "2L",
+    "3L": "3L",
+  };
+
   // ------------------------------------------------------------
-  // FETCH JOBS
+  // FETCH JOBS WITH PAGINATION & FILTERS
   // ------------------------------------------------------------
   useEffect(() => {
     const isFavorites = window.location.href.includes("favoritejobs");
 
-    if (isFavorites) {
-      dispatch(getFavoriteJobs());
-      track("FavoritesViewed");
-      posthog?.capture("favorites_page_viewed");
-    } else {
-      dispatch(getJobs());
+    if (!isFavorites) {
+      // Prepare API parameters
+      const params = {
+        page: currentPageNum,
+        page_size: pageSize || 9,
+      };
+
+      // Add state filter if selected
+      if (selectedState && selectedState !== "All") {
+        params.state = mapUIStateToAPI(selectedState);
+      }
+
+      // Add practice area filter if selected
+      if (selectedPracticeArea && selectedPracticeArea !== "All") {
+        params.practice_area = selectedPracticeArea;
+      }
+
+      // Add year eligibility filter if selected
+      if (selectedYearEligibility && selectedYearEligibility !== "All") {
+        params.year_eligibility = selectedYearEligibility;
+      }
+
+      dispatch(getJobs(params));
       track("JobPortalViewed");
       posthog?.capture("$pageview");
     }
-  }, [dispatch, posthog]);
+  }, [dispatch, posthog, currentPageNum, selectedState, selectedPracticeArea, selectedYearEligibility, pageSize]);
+
+  // Auto-set Georgia as default state on first load
+  useEffect(() => {
+    if (currentPageNum === 1 && selectedState === "") {
+      setSelectedState("Georgia");
+    }
+  }, []);
 
   // Scroll effect with sticky detection
   useEffect(() => {
@@ -148,7 +200,7 @@ function JobPortalFunc() {
 
   // Auto-scroll to results when search/filter changes (using debounced search)
   useEffect(() => {
-    if (resultsRef.current && (debouncedSearchTerm || selectedFirm !== "All" || selectedLocation !== "Georgia" || selectedType !== "All")) {
+    if (resultsRef.current && (debouncedSearchTerm || selectedFirm !== "All" || selectedState !== "Georgia" || selectedType !== "All")) {
       setTimeout(() => {
         const headerOffset = 160; // Account for sticky header + search bar
         const elementPosition = resultsRef.current.getBoundingClientRect().top;
@@ -160,7 +212,12 @@ function JobPortalFunc() {
         });
       }, 100); // Small delay to ensure DOM is updated
     }
-  }, [debouncedSearchTerm, selectedFirm, selectedLocation, selectedType]);
+  }, [debouncedSearchTerm, selectedFirm, selectedState, selectedType]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPageNum(1);
+  }, [selectedState, selectedPracticeArea, selectedYearEligibility]);
 
   // ------------------------------------------------------------
   // FILTER HELPERS (FROM ORIGINAL COMPONENT)
@@ -210,15 +267,7 @@ function JobPortalFunc() {
 
   const cleanJobs = (jobsSource || []).filter((j) => !isBadJob(j));
 
-  // Auto-apply Georgia filter on load
-  useEffect(() => {
-    if (cleanJobs.length && selectedLocation === "All") {
-      setSelectedLocation("Georgia");
-      track("AutoStateFilterApplied", { state: "Georgia" });
-    }
-  }, [cleanJobs.length]);
-
-  // Extract unique states and firms for filters
+  // Extract unique states and firms for filters (from local data for UI display)
   const statesList = Array.from(
     new Set(cleanJobs.map((j) => extractState(j.location)).filter(Boolean))
   ).sort();
@@ -235,8 +284,11 @@ function JobPortalFunc() {
     )
   ).sort();
 
+  // Year eligibility list
+  const yearsList = ["1L", "2L", "3L"];
+
   // ------------------------------------------------------------
-  // FILTER LOGIC
+  // CLIENT-SIDE FILTERING (for local data display)
   // ------------------------------------------------------------
   const filteredJobs = cleanJobs.filter((job) => {
     const matchesSearch =
@@ -249,7 +301,7 @@ function JobPortalFunc() {
       selectedFirm === "All" || job.firmName === selectedFirm;
 
     const matchesLocation =
-      selectedLocation === "All" || extractState(job.location) === selectedLocation;
+      selectedState === "All" || extractState(job.location) === selectedState;
 
     const matchesType =
       selectedType === "All" || job.areaOfLaw?.toLowerCase().includes(selectedType.toLowerCase());
@@ -258,6 +310,9 @@ function JobPortalFunc() {
   });
 
   const heroOpacity = Math.max(0, 1 - scrollY / 400);
+
+  // Total pages calculation
+  const totalPages = Math.ceil(totalJobs / (pageSize || 9));
 
   // ------------------------------------------------------------
   // DEADLINE HELPERS
@@ -303,13 +358,22 @@ function JobPortalFunc() {
   const handleResetFilters = () => {
     setSearchTerm("");
     setSelectedFirm("All");
-    setSelectedLocation("Georgia"); // Reset to default Georgia filter
+    setSelectedState("Georgia"); // Reset to default Georgia filter
     setSelectedType("All");
+    setSelectedPracticeArea("");
+    setSelectedYearEligibility("");
+    setCurrentPageNum(1);
     track("FiltersReset");
     posthog?.capture("filters_reset");
   };
 
-  const hasActiveFilters = searchTerm || selectedFirm !== "All" || selectedLocation !== "Georgia" || selectedType !== "All";
+  const hasActiveFilters = 
+    searchTerm || 
+    selectedFirm !== "All" || 
+    selectedState !== "Georgia" || 
+    selectedType !== "All" || 
+    selectedPracticeArea !== "" ||
+    selectedYearEligibility !== "";
 
   const handleOpenCoverLetter = (job, e) => {
     e?.stopPropagation();
@@ -347,6 +411,35 @@ function JobPortalFunc() {
         jobId: job.id,
       },
     });
+  };
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    if (currentPageNum < totalPages) {
+      setCurrentPageNum(currentPageNum + 1);
+      // Scroll to results
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPageNum > 1) {
+      setCurrentPageNum(currentPageNum - 1);
+      // Scroll to results
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  };
+
+  const handlePageChange = (pageNum) => {
+    setCurrentPageNum(pageNum);
+    // Scroll to results
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   // ------------------------------------------------------------
@@ -536,12 +629,12 @@ function JobPortalFunc() {
               <div className="flex flex-wrap gap-2 whitespace-nowrap">
                 <Button
                   size="sm"
-                  variant={selectedLocation === "All" ? "default" : "outline"}
+                  variant={selectedState === "All" ? "default" : "outline"}
                   onClick={() => {
-                    setSelectedLocation("All");
+                    setSelectedState("All");
                     track("LocationFilterChanged", { location: "All" });
                   }}
-                  className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedLocation === "All"
+                  className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedState === "All"
                     ? "bg-electric-teal hover:bg-deep-teal text-white"
                     : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
                     }`}
@@ -552,12 +645,12 @@ function JobPortalFunc() {
                   <Button
                     key={state}
                     size="sm"
-                    variant={selectedLocation === state ? "default" : "outline"}
+                    variant={selectedState === state ? "default" : "outline"}
                     onClick={() => {
-                      setSelectedLocation(state);
+                      setSelectedState(state);
                       track("LocationFilterChanged", { location: state });
                     }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedLocation === state
+                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedState === state
                       ? "bg-electric-teal hover:bg-deep-teal text-white"
                       : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
                       }`}
@@ -603,6 +696,78 @@ function JobPortalFunc() {
                   ))}
                 </div>
               )}
+
+              {/* Practice Area Filter (API-based) */}
+              {areasList.length > 0 && (
+                <div className="flex flex-wrap gap-2 whitespace-nowrap">
+                  <Button
+                    size="sm"
+                    variant={selectedPracticeArea === "" ? "default" : "outline"}
+                    onClick={() => {
+                      setSelectedPracticeArea("");
+                      track("PracticeAreaFilterChanged", { area: "All" });
+                    }}
+                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedPracticeArea === ""
+                      ? "bg-ai-violet hover:bg-ai-violet/80 text-white"
+                      : "border-ai-violet/20 hover:border-ai-violet hover:text-ai-violet"
+                      }`}
+                  >
+                    All Practices
+                  </Button>
+                  {areasList.slice(0, 5).map((area) => (
+                    <Button
+                      key={`practice-${area}`}
+                      size="sm"
+                      variant={selectedPracticeArea === area ? "default" : "outline"}
+                      onClick={() => {
+                        setSelectedPracticeArea(area);
+                        track("PracticeAreaFilterChanged", { area });
+                      }}
+                      className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedPracticeArea === area
+                        ? "bg-ai-violet hover:bg-ai-violet/80 text-white"
+                        : "border-ai-violet/20 hover:border-ai-violet hover:text-ai-violet"
+                        }`}
+                    >
+                      {area}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              {/* Year Eligibility Filter */}
+              <div className="flex flex-wrap gap-2 whitespace-nowrap">
+                <Button
+                  size="sm"
+                  variant={selectedYearEligibility === "" ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectedYearEligibility("");
+                    track("YearEligibilityFilterChanged", { year: "All" });
+                  }}
+                  className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedYearEligibility === ""
+                    ? "bg-warm-pop hover:bg-warm-pop/80 text-white"
+                    : "border-warm-pop/20 hover:border-warm-pop hover:text-warm-pop"
+                    }`}
+                >
+                  All Years
+                </Button>
+                {yearsList.map((year) => (
+                  <Button
+                    key={`year-${year}`}
+                    size="sm"
+                    variant={selectedYearEligibility === year ? "default" : "outline"}
+                    onClick={() => {
+                      setSelectedYearEligibility(year);
+                      track("YearEligibilityFilterChanged", { year });
+                    }}
+                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedYearEligibility === year
+                      ? "bg-warm-pop hover:bg-warm-pop/80 text-white"
+                      : "border-warm-pop/20 hover:border-warm-pop hover:text-warm-pop"
+                      }`}
+                  >
+                    {year}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -615,7 +780,9 @@ function JobPortalFunc() {
                 <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight mb-1 sm:mb-2 animate-slide-in-left">
                   {filteredJobs.length} {filteredJobs.length === 1 ? "Position" : "Positions"} Found
                 </h2>
-                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-warm-gray">Updated Daily</p>
+                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-warm-gray">
+                  Page {currentPageNum} of {Math.max(1, totalPages)} • {totalJobs} Total Opportunities
+                </p>
               </div>
             </div>
 
@@ -690,12 +857,6 @@ function JobPortalFunc() {
 
                             {/* Footer */}
                             <div className="mt-auto flex items-center justify-end pt-4 sm:pt-6 border-t border-charcoal/5">
-                              {/* <div className="flex items-center gap-1 sm:gap-2">
-                                <Users className="w-3 h-3 sm:w-4 sm:h-4 text-warm-gray" />
-                                <span className="text-[9px] sm:text-xs font-black uppercase tracking-widest text-warm-gray">
-                                  {job.jobApplicants || 0}
-                                </span>
-                              </div> */}
                               <div className="flex items-center gap-1 sm:gap-2 text-electric-teal font-black uppercase tracking-widest text-[9px] sm:text-xs group-hover:gap-3 sm:group-hover:gap-4 transition-all">
                                 View
                                 <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -703,9 +864,6 @@ function JobPortalFunc() {
                             </div>
                           </CardContent>
                         </Card>
-                        {/* <div onClick={(e) => e.stopPropagation()} className="absolute top-0 left-0 w-full h-full">
-                          <JobCardAIButtons job={job} isOverlay={true} />
-                        </div> */}
                       </div>
                     </div>
                   </div>
@@ -726,6 +884,45 @@ function JobPortalFunc() {
                 <p className="text-sm sm:text-lg md:text-xl font-bold uppercase tracking-wider text-warm-cream/60 mb-8 md:mb-12">
                   Try adjusting your filters
                 </p>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {filteredJobs.length > 0 && totalPages > 1 && (
+              <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 py-6 sm:py-8 bg-soft-teal/30 rounded-2xl sm:rounded-[2rem] border border-electric-teal/20">
+                <Button
+                  onClick={handlePreviousPage}
+                  disabled={currentPageNum === 1}
+                  className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold uppercase tracking-wider text-[9px] sm:text-[10px] bg-electric-teal hover:bg-deep-teal text-white disabled:bg-charcoal/20 disabled:text-charcoal/50 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Previous</span>
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <Button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      variant={currentPageNum === pageNum ? "default" : "outline"}
+                      className={`w-8 h-8 sm:w-10 sm:h-10 p-0 font-bold text-[9px] sm:text-xs rounded-lg transition-all ${currentPageNum === pageNum
+                        ? "bg-electric-teal hover:bg-deep-teal text-white"
+                        : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
+                        }`}
+                    >
+                      {pageNum}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={handleNextPage}
+                  disabled={currentPageNum >= totalPages}
+                  className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold uppercase tracking-wider text-[9px] sm:text-[10px] bg-electric-teal hover:bg-deep-teal text-white disabled:bg-charcoal/20 disabled:text-charcoal/50 disabled:cursor-not-allowed transition-all"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
             )}
           </div>

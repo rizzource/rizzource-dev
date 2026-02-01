@@ -21,7 +21,9 @@ import {
   Send,
   Target,
 } from "lucide-react";
-import { saveFavoriteJob, getFavoriteJobs, RemoveFavoriteJob } from "@/redux/slices/userApiSlice";
+// ✅ UPDATED: Removed saveFavoriteJob, getFavoriteJobs, RemoveFavoriteJob
+// These endpoints are not available in the new API
+// We now handle favorites with localStorage
 import { usePostHog } from 'posthog-js/react';
 
 import { Button } from "@/components/ui/button";
@@ -90,7 +92,19 @@ export default function JobDetails() {
       })
       : "";
 
-  // FAVORITE JOB HANDLER
+  // ✅ NEW: State to track favorite status locally
+  const [isFavorited, setIsFavorited] = useState(() => {
+    if (!job) return false;
+    try {
+      const favorites = JSON.parse(localStorage.getItem("favoriteJobs") || "[]");
+      return favorites.includes(job.id);
+    } catch {
+      return false;
+    }
+  });
+
+  // ✅ NEW: FAVORITE JOB HANDLER using localStorage
+  // Replaces the old saveFavoriteJob and RemoveFavoriteJob thunks
   const toggleFavorite = async (jobId) => {
     if (!user) {
       toast.error("Please sign in to save favorite jobs");
@@ -98,47 +112,37 @@ export default function JobDetails() {
     }
 
     try {
-      const result = await dispatch(saveFavoriteJob({ jobId }));
-
-      if (result.error) {
-        toast.error(result.error.message || "Failed to update favorite");
-        return;
+      let favorites = [];
+      try {
+        favorites = JSON.parse(localStorage.getItem("favoriteJobs") || "[]");
+      } catch {
+        favorites = [];
       }
 
-      posthog?.capture('job_favorited', {
-        job_id: jobId,
-        job_title: job.jobTitle,
-        company: job.firmName
-      });
-
-      toast.success("Updated your favorites");
-      window.location.reload();
-    } catch (err) {
-      toast.error("Could not update favorite job");
-    }
-  };
-
-  const deleteFavoriteJob = async (jobId) => {
-    if (!user) {
-      toast.error("Please sign in to save favorite jobs");
-      return;
-    }
-    try {
-      const result = await dispatch(RemoveFavoriteJob({ jobId }));
-
-      if (result.error) {
-        toast.error("Failed to remove from favorites. Please try again.");
-        return;
+      let updated;
+      if (favorites.includes(jobId)) {
+        // Remove from favorites
+        updated = favorites.filter((id) => id !== jobId);
+        setIsFavorited(false);
+        toast.success("Removed from favorites");
+        posthog?.capture('job_unfavorited', {
+          job_id: jobId,
+          job_title: job.jobTitle || job.title,
+          company: job.firmName
+        });
+      } else {
+        // Add to favorites
+        updated = [...favorites, jobId];
+        setIsFavorited(true);
+        toast.success("Added to favorites");
+        posthog?.capture('job_favorited', {
+          job_id: jobId,
+          job_title: job.jobTitle || job.title,
+          company: job.firmName
+        });
       }
 
-      posthog?.capture('job_unfavorited', {
-        job_id: jobId,
-        job_title: job.jobTitle,
-        company: job.firmName
-      });
-
-      toast.success("Updated your favorites!");
-      window.location.reload();
+      localStorage.setItem("favoriteJobs", JSON.stringify(updated));
     } catch (err) {
       console.error("Favorite job error:", err);
       toast.error("Something went wrong while saving your job.");
@@ -335,17 +339,17 @@ export default function JobDetails() {
                   )}
 
                   {/* {job.applicationDeadline && ( */}
-                    <div className="flex items-center gap-2 sm:gap-3 bg-surface p-3 sm:p-4 rounded-xl sm:rounded-2xl">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-soft-teal flex items-center justify-center shrink-0">
-                        <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-warm-pop" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-warm-gray mb-0.5 sm:mb-1">
-                          Deadline
-                        </p>
-                        <p className="font-bold text-xs sm:text-sm truncate">{job.applicationDeadline || "Rolling"}</p>
-                      </div>
+                  <div className="flex items-center gap-2 sm:gap-3 bg-surface p-3 sm:p-4 rounded-xl sm:rounded-2xl">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-soft-teal flex items-center justify-center shrink-0">
+                      <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-warm-pop" />
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-warm-gray mb-0.5 sm:mb-1">
+                        Deadline
+                      </p>
+                      <p className="font-bold text-xs sm:text-sm truncate">{job.applicationDeadline || "Rolling"}</p>
+                    </div>
+                  </div>
                   {/* )} */}
 
                   {job.vaultRank && (
@@ -452,11 +456,10 @@ export default function JobDetails() {
                   size="sm"
                   variant="ghost"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`rounded-full font-bold uppercase tracking-widest text-[9px] sm:text-[10px] whitespace-nowrap px-2 sm:px-3 py-1 sm:py-1.5 ${
-                    activeTab === tab.id
+                  className={`rounded-full font-bold uppercase tracking-widest text-[9px] sm:text-[10px] whitespace-nowrap px-2 sm:px-3 py-1 sm:py-1.5 ${activeTab === tab.id
                       ? "bg-electric-teal hover:bg-deep-teal text-white"
                       : "hover:bg-soft-teal hover:text-electric-teal"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </Button>

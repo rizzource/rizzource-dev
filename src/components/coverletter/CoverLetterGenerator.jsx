@@ -145,6 +145,8 @@ const CoverLetterGenerator = () => {
   }
 
   /* ---------- generation ---------- */
+  // ✅ UPDATED: Changed all parameters to snake_case
+  // resume_text, job_description, job_title, company, tone
   const generateCoverLetter = async () => {
     if (!resumeText || !jobDescription) {
       toast.error("Resume and job description required")
@@ -152,11 +154,18 @@ const CoverLetterGenerator = () => {
     }
     setGenerating(true)
     const res = await dispatch(
-      generateCoverLetterThunk({ resumeText, jobDescription, jobTitle, company, selectedTone })
+      generateCoverLetterThunk({
+        resume_text: resumeText,
+        job_description: jobDescription,
+        job_title: jobTitle,
+        company: company,
+        tone: selectedTone
+      })
     )
     setGenerating(false)
     if (res.meta.requestStatus === "fulfilled") {
-      setCoverLetter(res.payload.coverLetter)
+      // ✅ UPDATED: Handle both response formats (cover_letter or coverLetter)
+      setCoverLetter(res.payload.cover_letter || res.payload.coverLetter || "")
       setIsEditing(false)
       setMobileView("preview")
     }
@@ -165,11 +174,18 @@ const CoverLetterGenerator = () => {
   const regenerateCoverLetter = async () => {
     setGenerating(true)
     const res = await dispatch(
-      reGenerateCoverLetterThunk({ resumeText, jobDescription, jobTitle, company, selectedTone })
+      reGenerateCoverLetterThunk({
+        resume_text: resumeText,
+        job_description: jobDescription,
+        job_title: jobTitle,
+        company: company,
+        tone: selectedTone
+      })
     )
     setGenerating(false)
     if (res.meta.requestStatus === "fulfilled") {
-      setCoverLetter(res.payload.coverLetter)
+      // ✅ UPDATED: Handle both response formats (cover_letter or coverLetter)
+      setCoverLetter(res.payload.cover_letter || res.payload.coverLetter || "")
       setIsEditing(false)
       setMobileView("preview")
     }

@@ -181,11 +181,11 @@ const ResumePreview = ({ resumeData, isEditing, onEdit }) => {
                               experience: resumeData.experience.map((ex) =>
                                 ex.id === exp.id
                                   ? {
-                                      ...ex,
-                                      bullets: ex.bullets.map((b) =>
-                                        b.id === bullet.id ? { ...b, text: e.target.value } : b,
-                                      ),
-                                    }
+                                    ...ex,
+                                    bullets: ex.bullets.map((b) =>
+                                      b.id === bullet.id ? { ...b, text: e.target.value } : b,
+                                    ),
+                                  }
                                   : ex,
                               ),
                             })
@@ -432,15 +432,17 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
   }
 
   const generateAIBullets = async (bulletText, jobTitle) => {
+    // ✅ UPDATED: Changed bulletText → bullet_text, jobTitle → job_title (snake_case)
     const result = await dispatch(
       improveBulletThunk({
-        bulletText,
-        jobTitle,
+        bullet_text: bulletText,
+        job_title: jobTitle,
       }),
     )
 
     if (result.meta.requestStatus === "fulfilled") {
-      return result.payload.improvements
+      // ✅ UPDATED: Handle both response formats
+      return result.payload.improved_bullet ? [result.payload.improved_bullet] : result.payload.improvements || []
     } else {
       toast.error("Failed to improve bullet")
       return []
@@ -448,15 +450,17 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
   }
 
   const generateNewBullet = async (jobTitle, company) => {
+    // ✅ UPDATED: Changed jobTitle → job_title (snake_case)
     const result = await dispatch(
       generateNewBulletThunk({
-        jobTitle,
-        company,
+        job_title: jobTitle,
+        company: company,
       }),
     )
 
     if (result.meta.requestStatus === "fulfilled") {
-      return result.payload.newBullets
+      // ✅ UPDATED: Handle both response formats
+      return result.payload.bullet ? [result.payload.bullet] : result.payload.newBullets || []
     } else {
       toast.error("Could not generate bullet")
       return []
@@ -670,9 +674,9 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
       experience: resumeData.experience.map((exp) =>
         exp.id === expId
           ? {
-              ...exp,
-              bullets: exp.bullets.map((b) => (b.id === bulletId ? { ...b, text: newText } : b)),
-            }
+            ...exp,
+            bullets: exp.bullets.map((b) => (b.id === bulletId ? { ...b, text: newText } : b)),
+          }
           : exp,
       ),
     })
@@ -992,18 +996,16 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
           <div className="flex gap-2 p-2 bg-warm-cream rounded-2xl border border-charcoal/10">
             <Button
               variant={mobileView === "editor" ? "default" : "ghost"}
-              className={`flex-1 rounded-xl font-bold uppercase tracking-wider text-xs ${
-                mobileView === "editor" ? "bg-charcoal text-white" : "text-warm-gray hover:text-electric-teal"
-              }`}
+              className={`flex-1 rounded-xl font-bold uppercase tracking-wider text-xs ${mobileView === "editor" ? "bg-charcoal text-white" : "text-warm-gray hover:text-electric-teal"
+                }`}
               onClick={() => setMobileView("editor")}
             >
               Editor
             </Button>
             <Button
               variant={mobileView === "preview" ? "default" : "ghost"}
-              className={`flex-1 rounded-xl font-bold uppercase tracking-wider text-xs ${
-                mobileView === "preview" ? "bg-charcoal text-white" : "text-warm-gray hover:text-electric-teal"
-              }`}
+              className={`flex-1 rounded-xl font-bold uppercase tracking-wider text-xs ${mobileView === "preview" ? "bg-charcoal text-white" : "text-warm-gray hover:text-electric-teal"
+                }`}
               onClick={() => setMobileView("preview")}
             >
               Preview
