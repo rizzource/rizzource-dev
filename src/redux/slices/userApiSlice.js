@@ -137,7 +137,7 @@ export const getJobs = createAsyncThunk(
             const res = await axios.get(`${BASE_URL}/scraping/jobs?${params.toString()}`);
             return res.data;
         } catch (err) {
-            return rejectWithValue(err.response?.data?.message || "Failed to fetch jobs");
+            return rejectWithValue(err.response?.data?.message);
         }
     }
 );
