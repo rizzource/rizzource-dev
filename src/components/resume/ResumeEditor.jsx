@@ -1655,7 +1655,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
                   variant="outline"
                   size="sm"
                   onClick={onDownloadPdf}
-                  disabled={isDownloadingPdf}
+                  disabled={isDownloadingPdf || isPreviewEditing}
                   className={`${secondaryBtn} ${isDownloadingPdf ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   {isDownloadingPdf ? (

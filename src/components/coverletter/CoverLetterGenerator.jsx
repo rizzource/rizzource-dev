@@ -33,10 +33,12 @@ import {
   generateCoverLetterThunk,
   reGenerateCoverLetterThunk,
   fileUpload,
+  exportPdfThunk,
 } from "../../redux/slices/userApiSlice"
 import { useDispatch } from "react-redux"
 import { useLocation, useNavigate } from "react-router-dom"
 import { track } from "@/lib/analytics"
+import { buildCoverletterHtml } from "../../lib/utils"
 
 /* ---------- shared styling (same as ResumeEditor) ---------- */
 const cardShell = "border-none bg-white shadow-2xl rounded-[3rem] overflow-hidden"
@@ -93,6 +95,7 @@ const CoverLetterGenerator = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { jobId, title, jobCompany, description } = location.state || {}
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
 
   const [resumeText, setResumeText] = useState("")
   const [resumeFile, setResumeFile] = useState(null)
@@ -123,6 +126,65 @@ const CoverLetterGenerator = () => {
 
   const toggleSection = (k) =>
     setSectionsOpen((p) => ({ ...p, [k]: !p[k] }))
+
+
+  const onDownloadCoverLetterPdf = async () => {
+    if (!coverLetter || isDownloadingPdf) return
+
+    setIsDownloadingPdf(true)
+
+    try {
+      const fileNameBase =
+        `${jobTitle || "cover_letter"}_${company || ""}`
+          .toLowerCase()
+          .replace(/\s+/g, "_")
+          .replace(/[^a-z0-9_]/g, "") || "cover_letter"
+
+      const html = buildCoverletterHtml(
+        `${jobTitle || "Cover Letter"} – ${company || ""}`,
+        coverLetter
+      )
+
+      const result = await dispatch(
+        exportPdfThunk({
+          html,
+          fileName: fileNameBase,
+        })
+      )
+
+      if (!exportPdfThunk.fulfilled.match(result)) {
+        throw new Error(result.payload || "PDF export failed")
+      }
+
+      const blob = result.payload
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${fileNameBase}.pdf`
+      document.body.appendChild(a)
+      a.click()
+
+      a.remove()
+      window.URL.revokeObjectURL(url)
+
+      toast.success("Cover letter downloaded successfully!")
+
+      track("CoverLetterDownloaded", {
+        jobTitle,
+        company,
+        tone: selectedTone,
+        method: "backend_pdf",
+      })
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to export cover letter PDF")
+      track("CoverLetterDownloadFailed")
+    } finally {
+      setIsDownloadingPdf(false)
+    }
+  }
+
 
   /* ---------- upload (unchanged logic) ---------- */
   const handleFileSelect = (e) => {
@@ -383,10 +445,24 @@ const CoverLetterGenerator = () => {
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                   Copy
                 </Button>
-                <Button className={secondaryBtn} onClick={() => window.html2pdf().from(previewRef.current).save()}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export PDF
+                <Button
+                  className={`${secondaryBtn} ${isDownloadingPdf ? "opacity-70 cursor-not-allowed" : ""}`}
+                  onClick={onDownloadCoverLetterPdf}
+                  disabled={isDownloadingPdf || isEditing}
+                >
+                  {isDownloadingPdf ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Exporting…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export PDF
+                    </>
+                  )}
                 </Button>
+
               </div>
             )}
           </div>
