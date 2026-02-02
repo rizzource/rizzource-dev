@@ -547,12 +547,29 @@ const userApiSlice = createSlice({
             })
             .addCase(getJobs.fulfilled, (state, action) => {
                 state.loading = false;
-                state.jobs = action.payload.data || [];
-                state.totalJobs = action.payload.total_jobs || 0;
-                state.newJobs24h = action.payload.new_jobs_24h || 0;
-                state.lastUpdated = action.payload.last_updated;
-                state.currentPage = action.payload.page || 1;
-                state.pageSize = action.payload.page_size || 9;
+                const jobsData = action.payload.jobs || action.payload.data || [];
+                state.jobs = jobsData.map(job => ({
+                    id: job.id,
+                    firmName: job.firm,
+                    jobTitle: job.title,
+                    location: job.location,
+                    salary: job.salary,
+                    applicationDeadline: job.deadline,
+                    jobDescription: job.description,
+                    jobType: job.title.toLowerCase().includes('summer') ? 'Summer Internship' : 'Program',
+                    areaOfLaw: job.practice_area,
+                    jobUrl: job.url,
+                    source: job.source,
+                    state: job.state,
+                    class_year: job.class_year,
+                    posting_date: job.posting_date,
+                    created_at: job.created_at,
+                }));
+                state.totalJobs = action.payload.total_jobs || action.payload.totalJobs || 0;
+                state.newJobs24h = action.payload.new_jobs_24h || action.payload.newJobs24h || 0;
+                state.lastUpdated = action.payload.last_updated || action.payload.lastUpdated;
+                state.currentPage = action.payload.page || action.payload.currentPage || 1;
+                state.pageSize = action.payload.page_size || action.payload.pageSize || 9;
             })
             .addCase(getJobs.rejected, (state, action) => {
                 state.loading = false;

@@ -47,7 +47,7 @@ function JobPortalFunc() {
   const posthog = usePostHog();
 
   // Redux state
-  const { scrappedJobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h } = useSelector(
+  const { jobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h } = useSelector(
     (state) => state.userApi
   );
 
@@ -132,7 +132,7 @@ function JobPortalFunc() {
   // Auto-set Georgia as default state on first load
   useEffect(() => {
     if (currentPageNum === 1 && selectedState === "") {
-      setSelectedState("Georgia");
+      setSelectedState("All");
     }
   }, []);
 
@@ -200,7 +200,7 @@ function JobPortalFunc() {
 
   // Auto-scroll to results when search/filter changes (using debounced search)
   useEffect(() => {
-    if (resultsRef.current && (debouncedSearchTerm || selectedFirm !== "All" || selectedState !== "Georgia" || selectedType !== "All")) {
+    if (resultsRef.current && (debouncedSearchTerm || selectedFirm !== "All" || selectedState !== "All" || selectedType !== "All")) {
       setTimeout(() => {
         const headerOffset = 160; // Account for sticky header + search bar
         const elementPosition = resultsRef.current.getBoundingClientRect().top;
@@ -263,7 +263,7 @@ function JobPortalFunc() {
 
   const jobsSource = window.location.href.includes("favoritejobs")
     ? favoriteJobs
-    : scrappedJobs;
+    : jobs;
 
   const cleanJobs = (jobsSource || []).filter((j) => !isBadJob(j));
 
@@ -358,7 +358,7 @@ function JobPortalFunc() {
   const handleResetFilters = () => {
     setSearchTerm("");
     setSelectedFirm("All");
-    setSelectedState("Georgia"); // Reset to default Georgia filter
+    setSelectedState("All"); // Reset to default Georgia filter
     setSelectedType("All");
     setSelectedPracticeArea("");
     setSelectedYearEligibility("");
@@ -370,7 +370,7 @@ function JobPortalFunc() {
   const hasActiveFilters = 
     searchTerm || 
     selectedFirm !== "All" || 
-    selectedState !== "Georgia" || 
+    selectedState !== "All" || 
     selectedType !== "All" || 
     selectedPracticeArea !== "" ||
     selectedYearEligibility !== "";
@@ -386,7 +386,7 @@ function JobPortalFunc() {
     navigate("/cover-letter/generator", {
       state: {
         jobId: job.id,
-        title: job.jobTitle,
+        title: job.jobtitle,
         jobCompany: job.firmName,
         description: job.jobDescription,
       },
@@ -440,6 +440,23 @@ function JobPortalFunc() {
     setTimeout(() => {
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
+  };
+
+  // Function to get visible page numbers with ellipsis
+  const getVisiblePages = (current, total) => {
+    const pages = [];
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (current > 4) pages.push('...');
+      const start = Math.max(2, current - 1);
+      const end = Math.min(total - 1, current + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (current < total - 3) pages.push('...');
+      pages.push(total);
+    }
+    return pages;
   };
 
   // ------------------------------------------------------------
@@ -509,7 +526,7 @@ function JobPortalFunc() {
         {/* Filters Section with Sticky Search Bar */}
         <section
           ref={searchBarRef}
-          className={`sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 py-4 sm:py-6 px-4 sm:px-6 overflow-x-auto transition-all duration-300 ${isSearchBarSticky ? 'shadow-lg shadow-charcoal/5' : ''
+          className={`sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 py-3 sm:py-4 px-4 sm:px-6 overflow-x-auto transition-all duration-300 ${isSearchBarSticky ? 'shadow-lg shadow-charcoal/5' : ''
             }`}
         >
           <div className="container mx-auto">
@@ -588,185 +605,164 @@ function JobPortalFunc() {
               </div>
             </div>
 
-            {/* Firm and Location Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 overflow-x-auto pb-2">
-              {/* Firm Filter */}
-              <div className="flex flex-wrap gap-2 whitespace-nowrap">
-                <Button
-                  size="sm"
-                  variant={selectedFirm === "All" ? "default" : "outline"}
-                  onClick={() => {
-                    setSelectedFirm("All");
-                    track("FirmFilterChanged", { firm: "All" });
-                  }}
-                  className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedFirm === "All"
-                    ? "bg-electric-teal hover:bg-deep-teal text-white"
-                    : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                    }`}
-                >
-                  All
-                </Button>
-                {firmsList.slice(0, 10).map((firm) => (
-                  <Button
-                    key={firm}
-                    size="sm"
-                    variant={selectedFirm === firm ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedFirm(firm);
-                      track("FirmFilterChanged", { firm });
+            {/* Filters Grid (Dropdown version - compact) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {/* Firms */}
+              <div className="space-y-2">
+                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                  Firms
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={selectedFirm}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedFirm(val);
+                      track("FirmFilterChanged", { firm: val });
                     }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedFirm === firm
-                      ? "bg-electric-teal hover:bg-deep-teal text-white"
-                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                      }`}
+                    className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
                   >
-                    {firm}
-                  </Button>
-                ))}
+                    <option value="All">All</option>
+                    {firmsList.map((firm) => (
+                      <option key={firm} value={firm}>
+                        {firm}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                    ▼
+                  </div>
+                </div>
               </div>
 
-              {/* Location Filter */}
-              <div className="flex flex-wrap gap-2 whitespace-nowrap">
-                <Button
-                  size="sm"
-                  variant={selectedState === "All" ? "default" : "outline"}
-                  onClick={() => {
-                    setSelectedState("All");
-                    track("LocationFilterChanged", { location: "All" });
-                  }}
-                  className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedState === "All"
-                    ? "bg-electric-teal hover:bg-deep-teal text-white"
-                    : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                    }`}
-                >
-                  All
-                </Button>
-                {statesList.map((state) => (
-                  <Button
-                    key={state}
-                    size="sm"
-                    variant={selectedState === state ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedState(state);
-                      track("LocationFilterChanged", { location: state });
+              {/* States */}
+              <div className="space-y-2">
+                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                  States
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={selectedState}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedState(val);
+                      track("LocationFilterChanged", { location: val });
                     }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedState === state
-                      ? "bg-electric-teal hover:bg-deep-teal text-white"
-                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                      }`}
+                    className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
                   >
-                    {state}
-                  </Button>
-                ))}
+                    <option value="All">All</option>
+                    {statesList.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                    ▼
+                  </div>
+                </div>
               </div>
 
-              {/* Area of Law Filter */}
-              {areasList.length > 0 && (
-                <div className="flex flex-wrap gap-2 whitespace-nowrap">
-                  <Button
-                    size="sm"
-                    variant={selectedType === "All" ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedType("All");
-                      track("AreaFilterChanged", { area: "All" });
-                    }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedType === "All"
-                      ? "bg-electric-teal hover:bg-deep-teal text-white"
-                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                      }`}
-                  >
-                    All Areas
-                  </Button>
-                  {areasList.slice(0, 8).map((area) => (
-                    <Button
-                      key={area}
-                      size="sm"
-                      variant={selectedType === area ? "default" : "outline"}
-                      onClick={() => {
-                        setSelectedType(area);
-                        track("AreaFilterChanged", { area });
+              {/* Areas (client-side filter: selectedType) */}
+              {areasList.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                    Areas
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={selectedType}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedType(val);
+                        track("AreaFilterChanged", { area: val });
                       }}
-                      className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedType === area
-                        ? "bg-electric-teal hover:bg-deep-teal text-white"
-                        : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                        }`}
+                      className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
                     >
-                      {area}
-                    </Button>
-                  ))}
+                      <option value="All">All</option>
+                      {areasList.map((area) => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                      ▼
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                <div />
               )}
 
-              {/* Practice Area Filter (API-based) */}
-              {areasList.length > 0 && (
-                <div className="flex flex-wrap gap-2 whitespace-nowrap">
-                  <Button
-                    size="sm"
-                    variant={selectedPracticeArea === "" ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedPracticeArea("");
-                      track("PracticeAreaFilterChanged", { area: "All" });
-                    }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedPracticeArea === ""
-                      ? "bg-ai-violet hover:bg-ai-violet/80 text-white"
-                      : "border-ai-violet/20 hover:border-ai-violet hover:text-ai-violet"
-                      }`}
-                  >
-                    All Practices
-                  </Button>
-                  {areasList.slice(0, 5).map((area) => (
-                    <Button
-                      key={`practice-${area}`}
-                      size="sm"
-                      variant={selectedPracticeArea === area ? "default" : "outline"}
-                      onClick={() => {
-                        setSelectedPracticeArea(area);
-                        track("PracticeAreaFilterChanged", { area });
+              {/* Practices (API filter: selectedPracticeArea, "" = All) */}
+              {areasList.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                    Practices
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={selectedPracticeArea}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedPracticeArea(val);
+                        track("PracticeAreaFilterChanged", { area: val || "All" });
                       }}
-                      className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedPracticeArea === area
-                        ? "bg-ai-violet hover:bg-ai-violet/80 text-white"
-                        : "border-ai-violet/20 hover:border-ai-violet hover:text-ai-violet"
-                        }`}
+                      className="w-full h-10 sm:h-11 bg-surface border-2 border-ai-violet/20 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-ai-violet hover:border-ai-violet/60 transition-all"
                     >
-                      {area}
-                    </Button>
-                  ))}
+                      <option value="">All</option>
+                      {areasList.map((area) => (
+                        <option key={`practice-${area}`} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                      ▼
+                    </div>
+                  </div>
                 </div>
+              ) : (
+                <div />
               )}
 
-              {/* Year Eligibility Filter */}
-              <div className="flex flex-wrap gap-2 whitespace-nowrap">
-                <Button
-                  size="sm"
-                  variant={selectedYearEligibility === "" ? "default" : "outline"}
-                  onClick={() => {
-                    setSelectedYearEligibility("");
-                    track("YearEligibilityFilterChanged", { year: "All" });
-                  }}
-                  className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedYearEligibility === ""
-                    ? "bg-warm-pop hover:bg-warm-pop/80 text-white"
-                    : "border-warm-pop/20 hover:border-warm-pop hover:text-warm-pop"
-                    }`}
-                >
-                  All Years
-                </Button>
-                {yearsList.map((year) => (
-                  <Button
-                    key={`year-${year}`}
-                    size="sm"
-                    variant={selectedYearEligibility === year ? "default" : "outline"}
-                    onClick={() => {
-                      setSelectedYearEligibility(year);
-                      track("YearEligibilityFilterChanged", { year });
+              {/* Years (API filter: selectedYearEligibility, "" = All) */}
+              <div className="space-y-2">
+                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                  Years
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={selectedYearEligibility}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedYearEligibility(val);
+                      track("YearEligibilityFilterChanged", { year: val || "All" });
                     }}
-                    className={`rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 ${selectedYearEligibility === year
-                      ? "bg-warm-pop hover:bg-warm-pop/80 text-white"
-                      : "border-warm-pop/20 hover:border-warm-pop hover:text-warm-pop"
-                      }`}
+                    className="w-full h-10 sm:h-11 bg-surface border-2 border-warm-pop/20 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-warm-pop hover:border-warm-pop/60 transition-all"
                   >
-                    {year}
-                  </Button>
-                ))}
+                    <option value="">All</option>
+                    {yearsList.map((year) => (
+                      <option key={`year-${year}`} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                    ▼
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -807,7 +803,7 @@ function JobPortalFunc() {
                                   {job.firmName}
                                 </h3>
                                 <p className="text-xs sm:text-sm font-bold text-warm-gray uppercase tracking-wider truncate">
-                                  {job.jobtitle}
+                                  {job.jobTitle}
                                 </p>
                               </div>
                               <Badge className="bg-soft-teal text-electric-teal border-electric-teal/20 font-black uppercase tracking-widest text-[7px] sm:text-[8px] px-2 sm:px-3 py-0.5 sm:py-1 shrink-0 animate-bounce-gentle">
@@ -900,18 +896,22 @@ function JobPortalFunc() {
                 </Button>
 
                 <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                    <Button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      variant={currentPageNum === pageNum ? "default" : "outline"}
-                      className={`w-8 h-8 sm:w-10 sm:h-10 p-0 font-bold text-[9px] sm:text-xs rounded-lg transition-all ${currentPageNum === pageNum
-                        ? "bg-electric-teal hover:bg-deep-teal text-white"
-                        : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                        }`}
-                    >
-                      {pageNum}
-                    </Button>
+                  {getVisiblePages(currentPageNum, totalPages).map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="px-2 text-warm-gray font-bold text-[9px] sm:text-xs">...</span>
+                    ) : (
+                      <Button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        variant={currentPageNum === page ? "default" : "outline"}
+                        className={`w-8 h-8 sm:w-10 sm:h-10 p-0 font-bold text-[9px] sm:text-xs rounded-lg transition-all ${currentPageNum === page
+                          ? "bg-electric-teal hover:bg-deep-teal text-white"
+                          : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
+                          }`}
+                      >
+                        {page}
+                      </Button>
+                    )
                   ))}
                 </div>
 
