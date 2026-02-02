@@ -48,7 +48,7 @@ const FeedbackModal = ({
         try {
             const result = await dispatch(
                 submitFeedbackThunk({
-                    userId: user?.id,
+                    userId: user?.id || 1,
                     userFeedback: selectedFeedback,
                     feedbackType,
                     comments: additionalComments.trim() || undefined

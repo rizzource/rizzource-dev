@@ -124,7 +124,7 @@ export const submitFeedbackThunk = createAsyncThunk(
 // GET JOBS (SCRAPING ENDPOINT)
 export const getJobs = createAsyncThunk(
     "scraping/getJobs",
-    async ({ page = 1, page_size = 9, state, practice_area, year_eligibility, sort_by = "newest" } = {}, { rejectWithValue }) => {
+    async ({ page = 1, page_size = 9, state, practice_area, year_eligibility, search_term, sort_by = "newest" } = {}, { rejectWithValue }) => {
         try {
             const params = new URLSearchParams();
             params.append("page", page);
@@ -132,7 +132,8 @@ export const getJobs = createAsyncThunk(
             if (state) params.append("state", state);
             if (practice_area) params.append("practice_area", practice_area);
             if (year_eligibility) params.append("year_eligibility", year_eligibility);
-            params.append("sort_by", sort_by);
+            if (search_term) params.append("search_term", search_term)
+             params.append("sort_by", sort_by);
 
             const res = await axios.get(`${BASE_URL}/scraping/jobs?${params.toString()}`);
             return res.data;

@@ -122,12 +122,17 @@ function JobPortalFunc() {
       if (selectedYearEligibility && selectedYearEligibility !== "All") {
         params.year_eligibility = selectedYearEligibility;
       }
-
+      if (selectedYearEligibility && selectedYearEligibility !== "All") {
+        params.year_eligibility = selectedYearEligibility;
+      }
+      if (searchTerm) {
+        params.search_term = searchTerm;
+      }
       dispatch(getJobs(params));
       track("JobPortalViewed");
       posthog?.capture("$pageview");
     }
-  }, [dispatch, posthog, currentPageNum, selectedState, selectedPracticeArea, selectedYearEligibility, pageSize]);
+  }, [dispatch, posthog, currentPageNum, selectedState, selectedPracticeArea, selectedYearEligibility, searchTerm, pageSize]);
 
   // Auto-set Georgia as default state on first load
   useEffect(() => {
@@ -290,24 +295,25 @@ function JobPortalFunc() {
   // ------------------------------------------------------------
   // CLIENT-SIDE FILTERING (for local data display)
   // ------------------------------------------------------------
-  const filteredJobs = cleanJobs.filter((job) => {
-    const matchesSearch =
-      !searchTerm ||
-      job.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.firmName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.jobDescription?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredJobs = cleanJobs
+  // .filter((job) => {
+  //   const matchesSearch =
+  //     !searchTerm ||
+  //     job.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //     job.firmName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //     job.jobDescription?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesFirm =
-      selectedFirm === "All" || job.firmName === selectedFirm;
+  //   const matchesFirm =
+  //     selectedFirm === "All" || job.firmName === selectedFirm;
 
-    const matchesLocation =
-      selectedState === "All" || extractState(job.location) === selectedState;
+  //   const matchesLocation =
+  //     selectedState === "All" || extractState(job.location) === selectedState;
 
-    const matchesType =
-      selectedType === "All" || job.areaOfLaw?.toLowerCase().includes(selectedType.toLowerCase());
+  //   const matchesType =
+  //     selectedType === "All" || job.areaOfLaw?.toLowerCase().includes(selectedType.toLowerCase());
 
-    return matchesSearch && matchesFirm && matchesLocation && matchesType;
-  });
+  //   return matchesSearch && matchesFirm && matchesLocation && matchesType;
+  // });
 
   const heroOpacity = Math.max(0, 1 - scrollY / 400);
 
@@ -367,11 +373,11 @@ function JobPortalFunc() {
     posthog?.capture("filters_reset");
   };
 
-  const hasActiveFilters = 
-    searchTerm || 
-    selectedFirm !== "All" || 
-    selectedState !== "All" || 
-    selectedType !== "All" || 
+  const hasActiveFilters =
+    searchTerm ||
+    selectedFirm !== "All" ||
+    selectedState !== "All" ||
+    selectedType !== "All" ||
     selectedPracticeArea !== "" ||
     selectedYearEligibility !== "";
 
@@ -492,7 +498,7 @@ function JobPortalFunc() {
             <div className="max-w-4xl mx-auto text-center">
               <Badge className="bg-ai-violet/10 text-ai-violet border-ai-violet/20 font-black uppercase tracking-[0.2em] px-4 sm:px-6 py-1.5 sm:py-2 mb-4 sm:mb-8 text-[9px] sm:text-[10px] animate-scale-in">
                 <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1.5 sm:mr-2" />
-                {filteredJobs.length} Live Opportunities
+                {totalJobs} Live Opportunities
               </Badge>
 
               <h1 className="text-4xl sm:text-6xl md:text-8xl font-black uppercase tracking-tighter leading-[0.9] mb-4 sm:mb-6 animate-in fade-in slide-in-from-bottom-8 duration-1000">

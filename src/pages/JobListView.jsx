@@ -61,9 +61,9 @@ export default function JobListView({
                     {job.firmName}
                   </h3>
 
-                  <Badge className="bg-soft-teal text-electric-teal border-electric-teal/20 font-black uppercase tracking-widest text-[8px] px-2 py-0.5 shrink-0">
+                  {/* <Badge className="bg-soft-teal text-electric-teal border-electric-teal/20 font-black uppercase tracking-widest text-[8px] px-2 py-0.5 shrink-0">
                     V10
-                  </Badge>
+                  </Badge> */}
                 </div>
 
                 <div className="flex items-center gap-2 text-xs font-bold text-warm-gray uppercase tracking-wide truncate">
@@ -78,9 +78,9 @@ export default function JobListView({
               {/* Column 2: Status */}
               {/* ===================== */}
               <div className="flex-1 min-w-[160px] flex items-center gap-2">
-                <Badge className="bg-electric-teal/10 text-electric-teal border-electric-teal/20 font-black uppercase tracking-widest text-[8px] px-2 py-1">
+                {/* <Badge className="bg-electric-teal/10 text-electric-teal border-electric-teal/20 font-black uppercase tracking-widest text-[8px] px-2 py-1">
                   1L Eligible
-                </Badge>
+                </Badge> */}
 
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 bg-electric-teal rounded-full" />
