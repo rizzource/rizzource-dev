@@ -133,7 +133,7 @@ export const getJobs = createAsyncThunk(
             if (practice_area) params.append("practice_area", practice_area);
             if (year_eligibility) params.append("year_eligibility", year_eligibility);
             if (search_term) params.append("search_term", search_term)
-             params.append("sort_by", sort_by);
+            params.append("sort_by", sort_by);
 
             const res = await axios.get(`${BASE_URL}/scraping/jobs?${params.toString()}`);
             return res.data;
@@ -298,18 +298,29 @@ export const rewriteResumeThunk = createAsyncThunk(
 // ----------------------------------- 
 
 // EXPORT PDF (RAW HTML)
+// ----------------------------------- 
+// PDF EXPORT THUNKS
+// ----------------------------------- 
+
 export const exportPdfThunk = createAsyncThunk(
     "pdf/export",
     async ({ html, fileName = "resume" }, { rejectWithValue }) => {
         try {
             const res = await axios.post(
                 `${BASE_URL}/pdf/export`,
-                { html, fileName },
                 {
-                    responseType: "blob",
+                    html,
+                    fileName, // ✅ optional but supported
+                },
+                {
+                    responseType: "blob", // 🔑 REQUIRED for binary PDF
+                    headers: {
+                        Accept: "application/pdf",
+                    },
                 }
             );
-            return res.data;
+
+            return res.data; // Blob
         } catch (err) {
             return rejectWithValue(
                 err.response?.data?.message || "Failed to export PDF"
@@ -317,6 +328,7 @@ export const exportPdfThunk = createAsyncThunk(
         }
     }
 );
+
 
 // EXPORT RESUME AS PDF (STRUCTURED JSON)
 export const exportResumePdfThunk = createAsyncThunk(

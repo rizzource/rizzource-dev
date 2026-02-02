@@ -41,7 +41,7 @@ import {
   Save,
 } from "lucide-react"
 import { toast, Toaster } from "sonner"
-import { fileUpload, generateNewBulletThunk, improveBulletThunk } from "../../redux/slices/userApiSlice"
+import { exportPdfThunk, fileUpload, generateNewBulletThunk, improveBulletThunk } from "../../redux/slices/userApiSlice"
 import { useDispatch } from "react-redux"
 import { buildResumeHtml } from "../../lib/utils"
 import FeedbackModal from "../FeedbackModal"
@@ -357,6 +357,7 @@ const ResumePreview = ({ resumeData, isEditing, onEdit }) => {
 
 const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" }) => {
   const posthog = usePostHog()
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
   // Upload state
   const [uploadedFile, setUploadedFile] = useState(initialFile)
   const [isParsing, setIsParsing] = useState(false)
@@ -517,21 +518,65 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
       })
   }
 
-  const onDownloadPdf = () => {
-    const htmlString = buildResumeHtml(resumeData)
+  const onDownloadPdf = async () => {
+    if (isDownloadingPdf) return
 
-    const element = document.createElement("div")
-    element.innerHTML = htmlString
+    setIsDownloadingPdf(true)
 
-    window.html2pdf().from(element).save()
-    toast.success("PDF downloaded successfully!")
-    setTimeout(() => {
-      setShowFeedbackModal(true)
-    }, 1000)
-    track("ResumeDownloaded", {
-      sectionCount: Object.keys(resumeData || {}).length,
-    })
+    try {
+      const html = buildResumeHtml(
+        resumeData,
+        resumeData?.personalInfo?.name || "Resume"
+      )
+
+      const fileName =
+        `${resumeData?.personalInfo?.name
+          ?.toLowerCase()
+          .replace(/\s+/g, "_")}_Resume` || "resume"
+
+      const result = await dispatch(
+        exportPdfThunk({
+          html,
+          fileName,
+        })
+      )
+
+      if (!exportPdfThunk.fulfilled.match(result)) {
+        throw new Error(result.payload || "PDF export failed")
+      }
+
+      const blob = result.payload
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${fileName}.pdf`
+      document.body.appendChild(a)
+      a.click()
+
+      a.remove()
+      window.URL.revokeObjectURL(url)
+
+      toast.success("PDF downloaded successfully!")
+
+      setTimeout(() => {
+        setShowFeedbackModal(true)
+      }, 1000)
+
+      track("ResumeDownloaded", {
+        sectionCount: Object.keys(resumeData || {}).length,
+        method: "backend_pdf",
+      })
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to export PDF")
+      track("ResumeDownloadFailed")
+    } finally {
+      setIsDownloadingPdf(false)
+    }
   }
+
+
 
   const handleDrop = useCallback(async (e) => {
     e.preventDefault()
@@ -1606,10 +1651,26 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
                   )}
                 </Button>
 
-                <Button variant="outline" size="sm" onClick={() => onDownloadPdf()} className={secondaryBtn}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export PDF
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDownloadPdf}
+                  disabled={isDownloadingPdf}
+                  className={`${secondaryBtn} ${isDownloadingPdf ? "opacity-70 cursor-not-allowed" : ""}`}
+                >
+                  {isDownloadingPdf ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Exporting…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export PDF
+                    </>
+                  )}
                 </Button>
+
               </div>
             </div>
 
