@@ -674,7 +674,7 @@ function JobPortalFunc() {
               </div>
 
               {/* Areas (client-side filter: selectedType) */}
-              {areasList.length > 0 ? (
+              {/* {areasList.length > 0 ? (
                 <div className="space-y-2">
                   <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
                     Areas
@@ -705,7 +705,7 @@ function JobPortalFunc() {
                 </div>
               ) : (
                 <div />
-              )}
+              )} */}
 
               {/* Practices (API filter: selectedPracticeArea, "" = All) */}
               {areasList.length > 0 ? (

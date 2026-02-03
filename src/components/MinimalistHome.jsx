@@ -194,7 +194,7 @@ const MinimalistHome = () => {
 
           {/* Scrolling Magic Indicator */}
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 text-[10px] font-black uppercase tracking-[0.3em] text-warm-gray/50">
-            Scroll for Magic
+            {/* Scroll for Magic */}
             <div className="w-[1px] h-20 bg-gradient-to-b from-electric-teal to-transparent" />
           </div>
         </section>
