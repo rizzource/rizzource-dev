@@ -6,9 +6,9 @@ import logoDark from "@/assets/rizzource-logo-dark.png";
 
 const Footer = () => {
   const { theme } = useTheme();
-
+  const isJobPortal = window.location.href.includes("jobs")
   return (
-    <footer className="bg-charcoal text-warm-cream py-24 px-6 rounded-t-[4rem]">
+    <footer className={`bg-charcoal text-warm-cream py-24 px-6 ${!isJobPortal && "rounded-t-3xl sm:rounded-t-[4rem]"}`}>
       <div className="container mx-auto">
         <div className="grid md:grid-cols-4 gap-20 mb-20">
 
