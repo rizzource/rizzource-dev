@@ -51,11 +51,9 @@ function JobPortalFunc() {
   const posthog = usePostHog();
 
   // Redux state
-  const { jobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h, states,
-    firms,
-    practices, } = useSelector(
-      (state) => state.userApi
-    );
+  const { jobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h, states, firms, practices } = useSelector(
+    (state) => state.userApi
+  );
 
   // UI state
   const [scrollY, setScrollY] = useState(0);
@@ -107,7 +105,6 @@ function JobPortalFunc() {
     dispatch(getPracticesThunk());
   }, [dispatch]);
 
-
   // ------------------------------------------------------------
   // FETCH JOBS WITH PAGINATION & FILTERS
   // ------------------------------------------------------------
@@ -153,7 +150,6 @@ function JobPortalFunc() {
     debouncedSearchTerm,
     pageSize,
   ]);
-
   // Auto-set Georgia as default state on first load
   useEffect(() => {
     if (currentPageNum === 1 && selectedState === "") {
@@ -202,7 +198,7 @@ function JobPortalFunc() {
   useEffect(() => {
     if (searchBarRef.current) {
       const rect = searchBarRef.current.getBoundingClientRect();
-      searchBarStickyOffset.current = rect.top + window.scrollY - 80; // 80px for header
+      searchBarStickyOffset.current = rect.top + window.scrollY - 100; // 100px for header
     }
   }, []);
 
@@ -538,245 +534,399 @@ function JobPortalFunc() {
           </div>
         </section>
 
-        {/* Filters Section with Sticky Search Bar */}
+        {/* Filters Section with Smart Compact Sticky Header */}
         <section
           ref={searchBarRef}
-          className={`sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 py-3 sm:py-4 px-4 sm:px-6 overflow-x-auto transition-all duration-300 ${isSearchBarSticky ? 'shadow-lg shadow-charcoal/5' : ''
-            }`}
+          className={`sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 px-4 sm:px-6 overflow-x-hidden transition-all duration-300 ${isSearchBarSticky ? "shadow-lg shadow-charcoal/5" : ""
+            } ${isSearchBarSticky
+              ? "py-2 sm:py-2 max-h-[72px] sm:max-h-[80px]"
+              : "py-3 sm:py-4 max-h-[260px]"
+            } overflow-hidden`}
         >
           <div className="container mx-auto">
-            {/* Sticky Search Bar - Shows when scrolling */}
-            <div className={`transition-all duration-300 mb-4 ${isSearchBarSticky ? 'opacity-100 max-h-20' : 'opacity-0 max-h-0 overflow-hidden'
-              }`}>
-              <div className="relative max-w-2xl mx-auto">
-                <Search className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-warm-gray" />
-                <Input
-                  type="text"
-                  placeholder="Search firms, positions..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    track("JobSearchPerformed", { query: e.target.value });
-                  }}
-                  className="h-10 sm:h-12 pl-10 sm:pl-14 pr-4 text-sm sm:text-base font-medium bg-surface border-2 border-charcoal/10 rounded-xl sm:rounded-2xl focus:border-electric-teal focus:ring-0 placeholder:text-warm-gray/50 transition-all hover:border-electric-teal/50"
-                />
+            {/* EXPANDED LAYOUT (default / on scroll up) */}
+            <div
+              className={`transition-all duration-300 ${isSearchBarSticky
+                ? "opacity-0 -translate-y-2 pointer-events-none max-h-0"
+                : "opacity-100 translate-y-0 pointer-events-auto max-h-[260px]"
+                }`}
+            >
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warm-gray" />
+                    <span className="text-[9px] sm:text-xs font-black uppercase tracking-widest text-warm-gray">
+                      Filters
+                    </span>
+                  </div>
+
+                  {/* Reset Button - Only shows when filters are active */}
+                  {hasActiveFilters && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleResetFilters}
+                      className="rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 border-warm-pop/30 text-warm-pop hover:bg-warm-pop/10 hover:border-warm-pop transition-all flex items-center gap-1"
+                      title="Reset all filters"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span className="hidden sm:inline">Reset</span>
+                    </Button>
+                  )}
+                </div>
+
+                {/* View Toggle Buttons */}
+                <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                  <Button
+                    size="sm"
+                    variant={viewMode === "grid" ? "default" : "outline"}
+                    onClick={() => {
+                      setViewMode("grid");
+                      track("ViewModeChanged", { mode: "grid" });
+                    }}
+                    className={`rounded-lg font-bold uppercase tracking-widest text-[10px] sm:text-[11px] p-1.5 sm:p-2 ${viewMode === "grid"
+                      ? "bg-electric-teal hover:bg-deep-teal text-white"
+                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
+                      }`}
+                    title="Grid View"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={viewMode === "list" ? "default" : "outline"}
+                    onClick={() => {
+                      setViewMode("list");
+                      track("ViewModeChanged", { mode: "list" });
+                    }}
+                    className={`rounded-lg font-bold uppercase tracking-widest text-[10px] sm:text-[11px] p-1.5 sm:p-2 ${viewMode === "list"
+                      ? "bg-electric-teal hover:bg-deep-teal text-white"
+                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
+                      }`}
+                    title="List View"
+                  >
+                    <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filters Grid (Expanded) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {/* Firms */}
+                <div className="space-y-2">
+                  <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                    Firms
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={selectedFirm}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedFirm(val);
+                        track("FirmFilterChanged", { firm: val });
+                      }}
+                      className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
+                    >
+                      <option value="All">All</option>
+                      {firms?.map((firm) => (
+                        <option key={firm} value={firm}>
+                          {firm}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                      ▼
+                    </div>
+                  </div>
+                </div>
+
+                {/* States */}
+                <div className="space-y-2">
+                  <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                    States
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={selectedState}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedState(val);
+                        track("LocationFilterChanged", { location: val });
+                      }}
+                      className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
+                    >
+                      <option value="All">All</option>
+                      {states?.map((state) => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                      ▼
+                    </div>
+                  </div>
+                </div>
+
+                {/* Practices (API filter: selectedPracticeArea, "" = All) */}
+                {practices?.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                      Practices
+                    </div>
+
+                    <div className="relative">
+                      <select
+                        value={selectedPracticeArea}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedPracticeArea(val);
+                          track("PracticeAreaFilterChanged", { area: val || "All" });
+                        }}
+                        className="w-full h-10 sm:h-11 bg-surface border-2 border-ai-violet/20 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-ai-violet hover:border-ai-violet/60 transition-all"
+                      >
+                        <option value="">All</option>
+                        {practices?.map((area) => (
+                          <option key={`practice-${area}`} value={area}>
+                            {area}
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                        ▼
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div />
+                )}
+
+                {/* Years (API filter: selectedYearEligibility, "" = All) */}
+                <div className="space-y-2">
+                  <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
+                    Years
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={selectedYearEligibility}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedYearEligibility(val);
+                        track("YearEligibilityFilterChanged", { year: val || "All" });
+                      }}
+                      className="w-full h-10 sm:h-11 bg-surface border-2 border-warm-pop/20 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-warm-pop hover:border-warm-pop/60 transition-all"
+                    >
+                      <option value="">All</option>
+                      {yearsList.map((year) => (
+                        <option key={`year-${year}`} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                      ▼
+                    </div>
+                  </div>
+                </div>
+
+                {/* (5th col kept same behavior as your original grid) */}
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-warm-gray" />
-                  <span className="text-[9px] sm:text-xs font-black uppercase tracking-widest text-warm-gray">Filters</span>
-                </div>
-
-                {/* Reset Button - Only shows when filters are active */}
+            {/* COMPACT LAYOUT (on scroll down / sticky state) */}
+            <div
+              className={`transition-all duration-300 ${isSearchBarSticky
+                ? "opacity-100 translate-y-0 pointer-events-auto max-h-[80px]"
+                : "opacity-0 translate-y-2 pointer-events-none max-h-0"
+                }`}
+            >
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Left: Reset (icon-only in compact) */}
                 {hasActiveFilters && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={handleResetFilters}
-                    className="rounded-full font-bold uppercase tracking-wider text-[9px] sm:text-[10px] px-2 sm:px-3 py-1 sm:py-1.5 border-warm-pop/30 text-warm-pop hover:bg-warm-pop/10 hover:border-warm-pop transition-all flex items-center gap-1"
+                    className="shrink-0 rounded-full font-black uppercase tracking-wider text-[9px] sm:text-[10px] px-2.5 py-1.5 border-warm-pop/30 text-warm-pop hover:bg-warm-pop/10 hover:border-warm-pop transition-all"
                     title="Reset all filters"
                   >
-                    <RotateCcw className="w-3 h-3" />
-                    <span className="hidden sm:inline">Reset</span>
+                    <RotateCcw className="w-3.5 h-3.5" />
                   </Button>
                 )}
-              </div>
 
-              {/* View Toggle Buttons */}
-              <div className="flex items-center gap-2 ml-auto sm:ml-0">
-                <Button
-                  size="sm"
-                  variant={viewMode === "grid" ? "default" : "outline"}
-                  onClick={() => {
-                    setViewMode("grid");
-                    track("ViewModeChanged", { mode: "grid" });
-                  }}
-                  className={`rounded-lg font-bold uppercase tracking-widest text-[10px] sm:text-[11px] p-1.5 sm:p-2 ${viewMode === "grid"
-                    ? "bg-electric-teal hover:bg-deep-teal text-white"
-                    : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                    }`}
-                  title="Grid View"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  onClick={() => {
-                    setViewMode("list");
-                    track("ViewModeChanged", { mode: "list" });
-                  }}
-                  className={`rounded-lg font-bold uppercase tracking-widest text-[10px] sm:text-[11px] p-1.5 sm:p-2 ${viewMode === "list"
-                    ? "bg-electric-teal hover:bg-deep-teal text-white"
-                    : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
-                    }`}
-                  title="List View"
-                >
-                  <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Filters Grid (Dropdown version - compact) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {/* Firms */}
-              <div className="space-y-2">
-                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
-                  Firms
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={selectedFirm}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSelectedFirm(val);
-                      track("FirmFilterChanged", { firm: val });
-                    }}
-                    className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
-                  >
-                    <option value="All">All</option>
-                    {firms?.map((firm) => (
-                      <option key={firm} value={firm}>
-                        {firm}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
-                    ▼
-                  </div>
-                </div>
-              </div>
-
-              {/* States */}
-              <div className="space-y-2">
-                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
-                  States
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={selectedState}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSelectedState(val);
-                      track("LocationFilterChanged", { location: val });
-                    }}
-                    className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
-                  >
-                    <option value="All">All</option>
-                    {states?.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
-                    ▼
-                  </div>
-                </div>
-              </div>
-
-              {/* Areas (client-side filter: selectedType) */}
-              {/* {areasList.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
-                    Areas
-                  </div>
-
-                  <div className="relative">
+                {/* Middle: all filters in ONE horizontal row (scrollable) */}
+                <div className="grid grid-cols-4 gap-2 flex-1 min-w-0">
+                  {/* Firms */}
+                  <div className="relative min-w-0">
+                    <label className="sr-only">Firms</label>
                     <select
-                      value={selectedType}
+                      value={selectedFirm}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setSelectedType(val);
-                        track("AreaFilterChanged", { area: val });
+                        setSelectedFirm(val);
+                        track("FirmFilterChanged", { firm: val });
                       }}
-                      className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
+                      className="h-9 bg-surface border-2 border-charcoal/10 rounded-lg
+                      px-2 pr-6 text-[9px] font-black uppercase tracking-widest
+                      text-charcoal min-w-0 w-full
+                      focus:outline-none focus:border-electric-teal
+                      hover:border-electric-teal/50 transition-all"
                     >
-                      <option value="All">All</option>
-                      {areasList.map((area) => (
-                        <option key={area} value={area}>
-                          {area}
+                      <option value="All">All Firms</option>
+                      {firms?.map((firm) => (
+                        <option key={`compact-firm-${firm}`} value={firm}>
+                          {firm}
                         </option>
                       ))}
                     </select>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-[10px]">
+                      ▼
+                    </div>
+                  </div>
 
-                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
+                  {/* States */}
+                  <div className="relative min-w-0">
+                    <label className="sr-only">States</label>
+                    <select
+                      value={selectedState}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedState(val);
+                        track("LocationFilterChanged", { location: val });
+                      }}
+                      className="h-9 bg-surface border-2 border-charcoal/10 rounded-lg
+                      px-2 pr-6 text-[9px] font-black uppercase tracking-widest
+                      text-charcoal min-w-0 w-full
+                      focus:outline-none focus:border-electric-teal
+                      hover:border-electric-teal/50 transition-all"
+                    >
+                      <option value="All">All States</option>
+                      {states?.map((state) => (
+                        <option key={`compact-state-${state}`} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-[10px]">
+                      ▼
+                    </div>
+                  </div>
+
+                  {/* Practices */}
+                  {practices?.length > 0 && (
+                    <div className="relative min-w-0">
+                      <label className="sr-only">Practices</label>
+                      <select
+                        value={selectedPracticeArea}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedPracticeArea(val);
+                          track("PracticeAreaFilterChanged", { area: val || "All" });
+                        }}
+                        className="h-9 bg-surface border-2 border-charcoal/10 rounded-lg
+                        px-2 pr-6 text-[9px] font-black uppercase tracking-widest
+                        text-charcoal min-w-0 w-full
+                        focus:outline-none focus:border-electric-teal
+                        hover:border-electric-teal/50 transition-all"
+                      >
+                        <option value="">All Practices</option>
+                        {practices?.map((area) => (
+                          <option key={`compact-practice-${area}`} value={area}>
+                            {area}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-[10px]">
+                        ▼
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Years */}
+                  <div className="relative min-w-0">
+                    <label className="sr-only">Years</label>
+                    <select
+                      value={selectedYearEligibility}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedYearEligibility(val);
+                        track("YearEligibilityFilterChanged", { year: val || "All" });
+                      }}
+                      className="h-9 bg-surface border-2 border-charcoal/10 rounded-lg
+                      px-2 pr-6 text-[9px] font-black uppercase tracking-widest
+                      text-charcoal min-w-0 w-full
+                      focus:outline-none focus:border-electric-teal
+                      hover:border-electric-teal/50 transition-all"
+                    >
+                      <option value="">All Years</option>
+                      {yearsList.map((year) => (
+                        <option key={`compact-year-${year}`} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-[10px]">
                       ▼
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div />
-              )} */}
 
-              {/* Practices (API filter: selectedPracticeArea, "" = All) */}
-              {practices?.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
-                    Practices
-                  </div>
-
-                  <div className="relative">
-                    <select
-                      value={selectedPracticeArea}
+                {/* Right: Search + View toggles (extreme right, same row) */}
+                <div className="flex items-center gap-2 shrink-0 ml-auto">
+                  {/* Search inline */}
+                  <div className="relative hidden md:block">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-gray" />
+                    <Input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchTerm}
                       onChange={(e) => {
-                        const val = e.target.value;
-                        setSelectedPracticeArea(val);
-                        track("PracticeAreaFilterChanged", { area: val || "All" });
+                        setSearchTerm(e.target.value);
+                        track("JobSearchPerformed", { query: e.target.value });
                       }}
-                      className="w-full h-10 sm:h-11 bg-surface border-2 border-ai-violet/20 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-ai-violet hover:border-ai-violet/60 transition-all"
-                    >
-                      <option value="">All</option>
-                      {practices?.map((area) => (
-                        <option key={`practice-${area}`} value={area}>
-                          {area}
-                        </option>
-                      ))}
-                    </select>
-
-                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
-                      ▼
-                    </div>
+                      className="h-9 w-56 pl-9 pr-3 text-sm font-medium bg-surface border-2 border-charcoal/10 rounded-xl focus:border-electric-teal focus:ring-0 placeholder:text-warm-gray/50 transition-all hover:border-electric-teal/50"
+                    />
                   </div>
-                </div>
-              ) : (
-                <div />
-              )}
 
-              {/* Years (API filter: selectedYearEligibility, "" = All) */}
-              <div className="space-y-2">
-                <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
-                  Years
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={selectedYearEligibility}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSelectedYearEligibility(val);
-                      track("YearEligibilityFilterChanged", { year: val || "All" });
+                  {/* View toggles */}
+                  <Button
+                    size="sm"
+                    variant={viewMode === "grid" ? "default" : "outline"}
+                    onClick={() => {
+                      setViewMode("grid");
+                      track("ViewModeChanged", { mode: "grid" });
                     }}
-                    className="w-full h-10 sm:h-11 bg-surface border-2 border-warm-pop/20 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-warm-pop hover:border-warm-pop/60 transition-all"
+                    className={`rounded-lg font-bold uppercase tracking-widest text-[10px] p-2 ${viewMode === "grid"
+                      ? "bg-electric-teal hover:bg-deep-teal text-white"
+                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
+                      }`}
+                    title="Grid View"
                   >
-                    <option value="">All</option>
-                    {yearsList.map((year) => (
-                      <option key={`year-${year}`} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
+                    <LayoutGrid className="w-4 h-4" />
+                  </Button>
 
-                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-gray text-xs">
-                    ▼
-                  </div>
+                  <Button
+                    size="sm"
+                    variant={viewMode === "list" ? "default" : "outline"}
+                    onClick={() => {
+                      setViewMode("list");
+                      track("ViewModeChanged", { mode: "list" });
+                    }}
+                    className={`rounded-lg font-bold uppercase tracking-widest text-[10px] p-2 ${viewMode === "list"
+                      ? "bg-electric-teal hover:bg-deep-teal text-white"
+                      : "border-charcoal/20 hover:border-electric-teal hover:text-electric-teal"
+                      }`}
+                    title="List View"
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </div>
