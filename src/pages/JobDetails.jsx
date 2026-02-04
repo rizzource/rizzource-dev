@@ -302,11 +302,29 @@ export default function JobDetails() {
                   {job.jobTitle}
                 </h1>
 
-                <div className="flex items-center gap-2 sm:gap-4 mb-6 sm:mb-8">
+                <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
                   <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-electric-teal">
                     {job.firmName}
                   </h2>
+
+                  {/* Favorite Job Button */}
+                  <button
+                    onClick={() => toggleFavorite(job.id)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-full border border-charcoal/10 bg-white hover:bg-soft-teal hover:border-electric-teal transition-all group"
+                    aria-label="Favorite Job"
+                  >
+                    <Heart
+                      className={`w-4 h-4 transition-colors ${isFavorited
+                          ? "fill-electric-teal text-electric-teal"
+                          : "text-charcoal group-hover:text-electric-teal"
+                        }`}
+                    />
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">
+                      {isFavorited ? "Saved" : "Save"}
+                    </span>
+                  </button>
                 </div>
+
 
                 {/* Meta Grid */}
                 <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
@@ -457,8 +475,8 @@ export default function JobDetails() {
                   variant="ghost"
                   onClick={() => setActiveTab(tab.id)}
                   className={`rounded-full font-bold uppercase tracking-widest text-[9px] sm:text-[10px] whitespace-nowrap px-2 sm:px-3 py-1 sm:py-1.5 ${activeTab === tab.id
-                      ? "bg-electric-teal hover:bg-deep-teal text-white"
-                      : "hover:bg-soft-teal hover:text-electric-teal"
+                    ? "bg-electric-teal hover:bg-deep-teal text-white"
+                    : "hover:bg-soft-teal hover:text-electric-teal"
                     }`}
                 >
                   {tab.label}

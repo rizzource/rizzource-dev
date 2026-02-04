@@ -22,6 +22,7 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
+  Heart
 } from "lucide-react";
 
 import Header from "@/components/Header";
@@ -259,6 +260,12 @@ function JobPortalFunc() {
 
     return null;
   };
+
+  const handleFavoriteClick = (e, job) => {
+    e.stopPropagation(); // 👈 VERY IMPORTANT (prevents card click)
+    console.log("Favorited job:", job.id);
+  };
+
 
   const isBadJob = (job) =>
     !job ||
@@ -812,10 +819,30 @@ function JobPortalFunc() {
                                   {job.jobTitle}
                                 </p>
                               </div>
-                              <Badge className="bg-soft-teal text-electric-teal border-electric-teal/20 font-black uppercase tracking-widest text-[7px] sm:text-[8px] px-2 sm:px-3 py-0.5 sm:py-1 shrink-0 animate-bounce-gentle">
-                                {job.jobType === "Summer Internship" ? "SUMMER" : "PROGRAM"}
-                              </Badge>
+
+                              {/* Right-side actions */}
+                              <div className="flex items-center gap-2 shrink-0">
+                                {/* Favorite Button */}
+                                <button
+                                  onClick={(e) => handleFavoriteClick(e, job)}
+                                  className="p-2 rounded-full border border-charcoal/10 bg-white hover:bg-soft-teal hover:border-electric-teal transition-all group/fav"
+                                  aria-label="Favorite Job"
+                                >
+                                  <Heart
+                                    className={`w-4 h-4 transition-colors ${job.isFavorited
+                                        ? "fill-electric-teal text-electric-teal"
+                                        : "text-charcoal group-hover/fav:text-electric-teal"
+                                      }`}
+                                  />
+                                </button>
+
+                                {/* Existing Badge */}
+                                <Badge className="bg-soft-teal text-electric-teal border-electric-teal/20 font-black uppercase tracking-widest text-[7px] sm:text-[8px] px-2 sm:px-3 py-0.5 sm:py-1 animate-bounce-gentle">
+                                  {job.jobType === "Summer Internship" ? "SUMMER" : "PROGRAM"}
+                                </Badge>
+                              </div>
                             </div>
+
 
                             {/* Meta Info */}
                             <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
