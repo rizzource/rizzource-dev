@@ -8,7 +8,7 @@ const Footer = () => {
   const { theme } = useTheme();
 
   return (
-    <footer className="bg-charcoal text-warm-cream py-24 px-6 rounded-t-[4rem]">
+    <footer className="bg-charcoal text-warm-cream py-24 px-6">
       <div className="container mx-auto">
         <div className="grid md:grid-cols-4 gap-20 mb-20">
 
