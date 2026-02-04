@@ -796,7 +796,7 @@ function JobPortalFunc() {
             </div>
 
             {viewMode === "grid" ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filteredJobs.map((job, index) => (
                   <div
                     key={job.id}
@@ -812,7 +812,7 @@ function JobPortalFunc() {
                             {/* Header */}
                             <div className="flex justify-between items-start mb-4 sm:mb-6 gap-2">
                               <div className="flex-1 min-w-0">
-                                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight leading-tight mb-1 sm:mb-2 group-hover:text-electric-teal transition-colors truncate">
+                                <h3 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tight leading-tight mb-1 sm:mb-2 group-hover:text-electric-teal transition-colors truncate">
                                   {job.firmName}
                                 </h3>
                                 <p className="text-xs sm:text-sm font-bold text-warm-gray uppercase tracking-wider truncate">
