@@ -124,15 +124,16 @@ export const submitFeedbackThunk = createAsyncThunk(
 // GET JOBS (SCRAPING ENDPOINT)
 export const getJobs = createAsyncThunk(
     "scraping/getJobs",
-    async ({ page = 1, page_size = 9, state, practice_area, year_eligibility, search_term, sort_by = "newest" } = {}, { rejectWithValue }) => {
+    async ({ page = 1, page_size = 9, state, practice_area, year_eligibility, search_term, firm_name, sort_by = "newest" } = {}, { rejectWithValue }) => {
         try {
             const params = new URLSearchParams();
             params.append("page", page);
             params.append("page_size", page_size);
             if (state) params.append("state", state);
-            if (practice_area) params.append("practice_area", practice_area);
+            if (practice_area) params.append("practice", practice_area);
             if (year_eligibility) params.append("year_eligibility", year_eligibility);
-            if (search_term) params.append("search_term", search_term)
+            if (search_term) params.append("query", search_term)
+            if (firm_name) params.append("firm", firm_name);
             params.append("sort_by", sort_by);
 
             const res = await axios.get(`${BASE_URL}/scraping/jobs?${params.toString()}`);
@@ -368,6 +369,55 @@ export const exportResumePdfThunk = createAsyncThunk(
     }
 );
 
+// -----------------------------------
+// NEW SCRAPING METADATA THUNKS (V2)
+// -----------------------------------
+
+// GET STATES
+export const getStatesThunk = createAsyncThunk(
+    "scraping/getStates",
+    async (_, { rejectWithValue }) => {
+        try {
+            const res = await axios.get(`${BASE_URL}/scraping/states`);
+            return res.data;
+        } catch (err) {
+            return rejectWithValue(
+                err.response?.data?.message || "Failed to fetch states"
+            );
+        }
+    }
+);
+
+// GET FIRMS
+export const getFirmsThunk = createAsyncThunk(
+    "scraping/getFirms",
+    async (_, { rejectWithValue }) => {
+        try {
+            const res = await axios.get(`${BASE_URL}/scraping/firms`);
+            return res.data;
+        } catch (err) {
+            return rejectWithValue(
+                err.response?.data?.message || "Failed to fetch firms"
+            );
+        }
+    }
+);
+
+// GET PRACTICE AREAS
+export const getPracticesThunk = createAsyncThunk(
+    "scraping/getPractices",
+    async (_, { rejectWithValue }) => {
+        try {
+            const res = await axios.get(`${BASE_URL}/scraping/practices`);
+            return res.data;
+        } catch (err) {
+            return rejectWithValue(
+                err.response?.data?.message || "Failed to fetch practice areas"
+            );
+        }
+    }
+);
+
 // ----------------------------------- 
 // INITIAL STATE
 // ----------------------------------- 
@@ -401,6 +451,11 @@ const initialState = {
 
     // PDF Export
     exportedPdf: null,
+
+    // Filters
+    states: [],
+    firms: [],
+    practices: [],
 };
 
 // ----------------------------------- 
@@ -735,6 +790,50 @@ const userApiSlice = createSlice({
                 state.exportedPdf = action.payload;
             })
             .addCase(exportResumePdfThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            });
+        // --------- GET STATES ---------
+        builder
+            .addCase(getStatesThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(getStatesThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.states = action.payload.states || [];
+            })
+            .addCase(getStatesThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            });
+
+        // --------- GET FIRMS ---------
+        builder
+            .addCase(getFirmsThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(getFirmsThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.firms = action.payload.firms || [];
+            })
+            .addCase(getFirmsThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            });
+
+        // --------- GET PRACTICES ---------
+        builder
+            .addCase(getPracticesThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(getPracticesThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.practices = action.payload.practices || [];
+            })
+            .addCase(getPracticesThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             });

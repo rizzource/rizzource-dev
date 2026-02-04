@@ -34,6 +34,9 @@ import {
   getJobs,
   // getFavoriteJobs,
   setSelectedJob,
+  getStatesThunk,
+  getFirmsThunk,
+  getPracticesThunk,
 } from "@/redux/slices/userApiSlice";
 
 import { toast, Toaster } from "sonner";
@@ -48,9 +51,11 @@ function JobPortalFunc() {
   const posthog = usePostHog();
 
   // Redux state
-  const { jobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h } = useSelector(
-    (state) => state.userApi
-  );
+  const { jobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h, states,
+    firms,
+    practices, } = useSelector(
+      (state) => state.userApi
+    );
 
   // UI state
   const [scrollY, setScrollY] = useState(0);
@@ -96,44 +101,58 @@ function JobPortalFunc() {
     "3L": "3L",
   };
 
+  useEffect(() => {
+    dispatch(getStatesThunk());
+    dispatch(getFirmsThunk());
+    dispatch(getPracticesThunk());
+  }, [dispatch]);
+
+
   // ------------------------------------------------------------
   // FETCH JOBS WITH PAGINATION & FILTERS
   // ------------------------------------------------------------
   useEffect(() => {
     const isFavorites = window.location.href.includes("favoritejobs");
+    if (isFavorites) return;
 
-    if (!isFavorites) {
-      // Prepare API parameters
-      const params = {
-        page: currentPageNum,
-        page_size: pageSize || 9,
-      };
+    const params = {
+      page: currentPageNum,
+      page_size: pageSize || 9,
+    };
 
-      // Add state filter if selected
-      if (selectedState && selectedState !== "All") {
-        params.state = mapUIStateToAPI(selectedState);
-      }
-
-      // Add practice area filter if selected
-      if (selectedPracticeArea && selectedPracticeArea !== "All") {
-        params.practice_area = selectedPracticeArea;
-      }
-
-      // Add year eligibility filter if selected
-      if (selectedYearEligibility && selectedYearEligibility !== "All") {
-        params.year_eligibility = selectedYearEligibility;
-      }
-      if (selectedYearEligibility && selectedYearEligibility !== "All") {
-        params.year_eligibility = selectedYearEligibility;
-      }
-      if (searchTerm) {
-        params.search_term = searchTerm;
-      }
-      dispatch(getJobs(params));
-      track("JobPortalViewed");
-      posthog?.capture("$pageview");
+    if (selectedState && selectedState !== "All") {
+      params.state = selectedState;
     }
-  }, [dispatch, posthog, currentPageNum, selectedState, selectedPracticeArea, selectedYearEligibility, searchTerm, pageSize]);
+
+    if (selectedPracticeArea) {
+      params.practice_area = selectedPracticeArea;
+    }
+
+    if (selectedYearEligibility) {
+      params.year_eligibility = selectedYearEligibility;
+    }
+
+    if (debouncedSearchTerm) {
+      params.search_term = debouncedSearchTerm; // 🔑 maps to backend `query`
+    }
+    if (selectedFirm) {
+      params.firm_name = selectedFirm;
+    }
+    dispatch(getJobs(params));
+
+    track("JobPortalViewed");
+    posthog?.capture("$pageview");
+  }, [
+    dispatch,
+    posthog,
+    currentPageNum,
+    selectedFirm,
+    selectedState,
+    selectedPracticeArea,
+    selectedYearEligibility,
+    debouncedSearchTerm,
+    pageSize,
+  ]);
 
   // Auto-set Georgia as default state on first load
   useEffect(() => {
@@ -278,23 +297,6 @@ function JobPortalFunc() {
     : jobs;
 
   const cleanJobs = (jobsSource || []).filter((j) => !isBadJob(j));
-
-  // Extract unique states and firms for filters (from local data for UI display)
-  const statesList = Array.from(
-    new Set(cleanJobs.map((j) => extractState(j.location)).filter(Boolean))
-  ).sort();
-
-  const firmsList = Array.from(
-    new Set(cleanJobs.map((j) => j.firmName).filter(Boolean))
-  ).sort();
-
-  const areasList = Array.from(
-    new Set(
-      cleanJobs.flatMap((j) =>
-        j.areaOfLaw ? j.areaOfLaw.split(/,|\//).map((a) => a.trim()) : []
-      )
-    )
-  ).sort();
 
   // Year eligibility list
   const yearsList = ["1L", "2L", "3L"];
@@ -637,7 +639,7 @@ function JobPortalFunc() {
                     className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
                   >
                     <option value="All">All</option>
-                    {firmsList.map((firm) => (
+                    {firms?.map((firm) => (
                       <option key={firm} value={firm}>
                         {firm}
                       </option>
@@ -667,7 +669,7 @@ function JobPortalFunc() {
                     className="w-full h-10 sm:h-11 bg-surface border-2 border-charcoal/10 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-electric-teal hover:border-electric-teal/50 transition-all"
                   >
                     <option value="All">All</option>
-                    {statesList.map((state) => (
+                    {states?.map((state) => (
                       <option key={state} value={state}>
                         {state}
                       </option>
@@ -715,7 +717,7 @@ function JobPortalFunc() {
               )} */}
 
               {/* Practices (API filter: selectedPracticeArea, "" = All) */}
-              {areasList.length > 0 ? (
+              {practices?.length > 0 ? (
                 <div className="space-y-2">
                   <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-warm-gray">
                     Practices
@@ -732,7 +734,7 @@ function JobPortalFunc() {
                       className="w-full h-10 sm:h-11 bg-surface border-2 border-ai-violet/20 rounded-xl px-3 pr-10 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-charcoal focus:outline-none focus:border-ai-violet hover:border-ai-violet/60 transition-all"
                     >
                       <option value="">All</option>
-                      {areasList.map((area) => (
+                      {practices?.map((area) => (
                         <option key={`practice-${area}`} value={area}>
                           {area}
                         </option>
@@ -830,8 +832,8 @@ function JobPortalFunc() {
                                 >
                                   <Heart
                                     className={`w-4 h-4 transition-colors ${job.isFavorited
-                                        ? "fill-electric-teal text-electric-teal"
-                                        : "text-charcoal group-hover/fav:text-electric-teal"
+                                      ? "fill-electric-teal text-electric-teal"
+                                      : "text-charcoal group-hover/fav:text-electric-teal"
                                       }`}
                                   />
                                 </button>
