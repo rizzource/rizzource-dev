@@ -540,16 +540,17 @@ function JobPortalFunc() {
           className={`sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 px-4 sm:px-6 overflow-x-hidden transition-all duration-300 ${isSearchBarSticky ? "shadow-lg shadow-charcoal/5" : ""
             } ${isSearchBarSticky
               ? "py-2 sm:py-2 max-h-[72px] sm:max-h-[80px]"
-              : "py-3 sm:py-4 max-h-[260px]"
-            } overflow-hidden`}
+              : "py-3 sm:py-4 max-h-none sm:max-h-[260px]"
+            } overflow-visible sm:overflow-hidden`}
         >
           <div className="container mx-auto">
             {/* EXPANDED LAYOUT (default / on scroll up) */}
             <div
-              className={`transition-all duration-300 ${isSearchBarSticky
-                ? "opacity-0 -translate-y-2 pointer-events-none max-h-0"
-                : "opacity-100 translate-y-0 pointer-events-auto max-h-[260px]"
-                }`}
+              className={`transition-all duration-300 ${
+                isSearchBarSticky
+                  ? "opacity-0 -translate-y-2 pointer-events-none max-h-0"
+                  : "opacity-100 translate-y-0 pointer-events-auto max-h-none sm:max-h-[260px]"
+              }`}
             >
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div className="flex items-center gap-3">
