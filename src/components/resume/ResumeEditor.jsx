@@ -39,6 +39,7 @@ import {
   FileUp,
   Edit3,
   Save,
+  MessageCircle,
 } from "lucide-react"
 import { toast, Toaster } from "sonner"
 import { exportPdfThunk, fileUpload, generateNewBulletThunk, improveBulletThunk } from "../../redux/slices/userApiSlice"
@@ -78,6 +79,136 @@ const hoverCard =
   "group relative bg-white border-2 border-charcoal/10 rounded-3xl hover:border-electric-teal/50 hover:shadow-2xl transition-all duration-300 overflow-hidden"
 const hoverOverlay =
   "absolute inset-0 bg-gradient-to-r from-electric-teal/5 to-ai-violet/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity"
+
+// ========== CUSTOM PROMPT MODAL COMPONENT ==========
+const CustomPromptModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading,
+  type = "enhance", // 'enhance' or 'add'
+  currentBulletText = "",
+  jobTitle = "",
+  company = ""
+}) => {
+  const [prompt, setPrompt] = useState("")
+
+  useEffect(() => {
+    if (isOpen) {
+      setPrompt("")
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  const handleSubmit = () => {
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt")
+      return
+    }
+    onSubmit(prompt)
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && e.ctrlKey) {
+      handleSubmit()
+    }
+  }
+
+  const placeholders = {
+    enhance: "e.g., 'Make it more action-oriented' or 'Emphasize impact and metrics'",
+    add: "e.g., 'Add a bullet about leadership responsibilities' or 'Highlight project management skills'",
+  }
+
+  return (
+    <div className="fixed inset-0 bg-charcoal/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-[3rem] shadow-2xl p-8 max-w-2xl w-[92%] mx-4 space-y-6 border-2 border-electric-teal/30">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-ai-violet/20 to-electric-teal/20 flex items-center justify-center">
+              <MessageCircle className="h-6 w-6 text-ai-violet" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-tight text-charcoal">
+                {type === "enhance" ? "Enhance with Custom Prompt" : "Generate with Custom Prompt"}
+              </h2>
+              <p className="text-xs font-bold uppercase tracking-wider text-warm-gray mt-1">
+                {type === "enhance"
+                  ? `Job: ${jobTitle || "Unknown"}`
+                  : `Job: ${jobTitle || "Unknown"} • Company: ${company || "Unknown"}`}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            className="h-10 w-10 rounded-2xl text-warm-gray hover:text-electric-teal hover:bg-soft-teal"
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Context Display (only for enhance) */}
+        {type === "enhance" && currentBulletText && (
+          <div className="p-4 rounded-2xl bg-warm-cream border-2 border-charcoal/10">
+            <p className="text-xs font-bold uppercase tracking-wider text-warm-gray mb-2">Current Bullet:</p>
+            <p className="text-sm text-charcoal font-medium">{currentBulletText}</p>
+          </div>
+        )}
+
+        {/* Textarea for Prompt */}
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-warm-gray block mb-3">
+            Your Custom Prompt
+          </label>
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholders[type]}
+            disabled={isLoading}
+            className={`${textareaShell} min-h-[120px] resize-none`}
+          />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-warm-gray/70 mt-2">
+            💡 Tip: Be specific about tone, style, or what you want to emphasize
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className={secondaryBtn}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            className={aiBtn}
+            onClick={handleSubmit}
+            disabled={isLoading || !prompt.trim()}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                {type === "enhance" ? "Enhance" : "Generate"} with AI
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Live Preview Component
 const ResumePreview = ({ resumeData, isEditing, onEdit }) => {
@@ -386,6 +517,18 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
   const [addAiSuggestions, setAddAiSuggestions] = useState([])
   const [isGeneratingAdd, setIsGeneratingAdd] = useState(false)
 
+  // ========== CUSTOM PROMPT STATE ==========
+  const [promptModalState, setPromptModalState] = useState({
+    isOpen: false,
+    type: "enhance", // 'enhance' or 'add'
+    expId: null,
+    bulletId: null,
+    isLoading: false,
+    jobTitle: "",
+    company: "",
+    currentBulletText: "",
+  })
+
   // Section collapse state
   const [collapsedSections, setCollapsedSections] = useState({})
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
@@ -432,8 +575,189 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
     setIsPreviewEditing(!isPreviewEditing)
   }
 
+  // ========== CUSTOM PROMPT HANDLERS ==========
+  const handleOpenPromptModal = (type, expId, bulletId = null) => {
+    const exp = resumeData?.experience.find((e) => e.id === expId)
+    if (!exp) return
+
+    let currentBulletText = ""
+    if (type === "enhance" && bulletId) {
+      const bullet = exp.bullets.find((b) => b.id === bulletId)
+      currentBulletText = bullet?.text || ""
+    }
+
+    setPromptModalState({
+      isOpen: true,
+      type,
+      expId,
+      bulletId,
+      isLoading: false,
+      jobTitle: exp.title || "",
+      company: exp.company || "",
+      currentBulletText,
+    })
+
+    track("AIPromptModalOpened", { type, expId, bulletId })
+    posthog?.capture("ai_prompt_modal_opened", {
+      type,
+      exp_id: expId,
+      bullet_id: bulletId,
+    })
+  }
+
+  const handleClosePromptModal = () => {
+    setPromptModalState((prev) => ({ ...prev, isOpen: false }))
+  }
+
+  const handleSubmitCustomPrompt = async (prompt) => {
+    const { type, expId, bulletId } = promptModalState
+
+    if (type === "enhance") {
+      await generateAIBulletsWithPrompt(expId, bulletId, prompt)
+    } else {
+      await generateNewBulletWithPrompt(expId, prompt)
+    }
+  }
+
+  // ========== ENHANCED AI FUNCTIONS WITH PROMPT SUPPORT ==========
+  const generateAIBulletsWithPrompt = async (expId, bulletId, customPrompt) => {
+    const exp = resumeData?.experience.find((e) => e.id === expId)
+    const bullet = exp?.bullets.find((b) => b.id === bulletId)
+    if (!exp || !bullet) return
+
+    setPromptModalState((prev) => ({ ...prev, isLoading: true }))
+    setActiveEnhanceBulletId(bulletId)
+    setIsGeneratingEnhance(true)
+    setEnhanceAiSuggestions([])
+
+    track("AIBulletImproveWithPromptStarted", {
+      bulletId,
+      expId,
+      hasCustomPrompt: !!customPrompt,
+    })
+    posthog?.capture("ai_resume_enhance_with_prompt", {
+      exp_id: expId,
+      bullet_id: bulletId,
+      has_custom_prompt: !!customPrompt,
+    })
+
+    try {
+      // TODO: Replace this with your actual backend endpoint for custom prompts
+      // const result = await dispatch(
+      //   enhanceBulletWithPromptThunk({
+      //     bullet_text: bullet.text,
+      //     job_title: exp.title,
+      //     custom_prompt: customPrompt,
+      //   }),
+      // )
+
+      // For now, falling back to the regular improve function
+      const result = await dispatch(
+        improveBulletThunk({
+          bullet_text: bullet.text,
+          job_title: exp.title,
+        }),
+      )
+
+      if (result.meta.requestStatus === "fulfilled") {
+        const suggestions = result.payload.improved_bullet
+          ? [result.payload.improved_bullet]
+          : result.payload.improvements || []
+
+        setEnhanceAiSuggestions(
+          suggestions
+            .filter((text) => /^\d+\.\s*".*"$/.test(text))
+            .map((text, i) => ({
+              id: `sug-${i}`,
+              text: text
+                .replace(/^\d+\.\s*/, "")
+                .replace(/^"|"$|^"+|"+$/g, ""),
+            })),
+        )
+        track("AIBulletImproveWithPromptCompleted", {
+          count: suggestions.length,
+        })
+        posthog?.capture("ai_resume_enhance_with_prompt_completed", {
+          suggestion_count: suggestions.length,
+        })
+      } else {
+        throw new Error("Failed to improve bullet")
+      }
+    } catch (error) {
+      toast.error("Failed to generate suggestions")
+      track("AIBulletImproveWithPromptFailed")
+      posthog?.capture("ai_resume_enhance_with_prompt_failed")
+    } finally {
+      setIsGeneratingEnhance(false)
+      setPromptModalState((prev) => ({ ...prev, isLoading: false, isOpen: false }))
+    }
+  }
+
+  const generateNewBulletWithPrompt = async (expId, customPrompt) => {
+    const exp = resumeData?.experience.find((e) => e.id === expId)
+    if (!exp) return
+
+    setPromptModalState((prev) => ({ ...prev, isLoading: true }))
+    setShowNewBulletAIExpId(expId)
+    setIsGeneratingAdd(true)
+    setAddAiSuggestions([])
+
+    track("AIAddBulletWithPromptStarted", {
+      expId,
+      hasCustomPrompt: !!customPrompt,
+    })
+    posthog?.capture("ai_resume_add_with_prompt", {
+      exp_id: expId,
+      has_custom_prompt: !!customPrompt,
+    })
+
+    try {
+      // TODO: Replace this with your actual backend endpoint for custom prompts
+      // const result = await dispatch(
+      //   generateBulletWithPromptThunk({
+      //     job_title: exp.title,
+      //     company: exp.company,
+      //     custom_prompt: customPrompt,
+      //   }),
+      // )
+
+      // For now, falling back to the regular generate function
+      const result = await dispatch(
+        generateNewBulletThunk({
+          job_title: exp.title,
+          company: exp.company,
+        }),
+      )
+
+      if (result.meta.requestStatus === "fulfilled") {
+        const suggestions = result.payload.bullet
+          ? [result.payload.bullet]
+          : result.payload.newBullets || []
+
+        const filteredSuggestions = suggestions.map((text, i) => ({
+          id: `sug-${i}`,
+          text: text.replace(/^-+\s*/, ""),
+        }))
+        setAddAiSuggestions(filteredSuggestions)
+        track("AIAddBulletWithPromptCompleted", { count: suggestions.length })
+        posthog?.capture("ai_resume_add_with_prompt_completed", {
+          suggestion_count: suggestions.length,
+        })
+      } else {
+        throw new Error("Could not generate bullet")
+      }
+    } catch (error) {
+      toast.error("Failed to generate bullet suggestions")
+      track("AIAddBulletWithPromptFailed")
+      posthog?.capture("ai_resume_add_with_prompt_failed")
+    } finally {
+      setIsGeneratingAdd(false)
+      setPromptModalState((prev) => ({ ...prev, isLoading: false, isOpen: false }))
+    }
+  }
+
+  // ========== ORIGINAL AI FUNCTIONS (PRESERVED) ==========
   const generateAIBullets = async (bulletText, jobTitle) => {
-    // ✅ UPDATED: Changed bulletText → bullet_text, jobTitle → job_title (snake_case)
     const result = await dispatch(
       improveBulletThunk({
         bullet_text: bulletText,
@@ -442,7 +766,6 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
     )
 
     if (result.meta.requestStatus === "fulfilled") {
-      // ✅ UPDATED: Handle both response formats
       return result.payload.improved_bullet ? [result.payload.improved_bullet] : result.payload.improvements || []
     } else {
       toast.error("Failed to improve bullet")
@@ -451,7 +774,6 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
   }
 
   const generateNewBullet = async (jobTitle, company) => {
-    // ✅ UPDATED: Changed jobTitle → job_title (snake_case)
     const result = await dispatch(
       generateNewBulletThunk({
         job_title: jobTitle,
@@ -460,7 +782,6 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
     )
 
     if (result.meta.requestStatus === "fulfilled") {
-      // ✅ UPDATED: Handle both response formats
       return result.payload.bullet ? [result.payload.bullet] : result.payload.newBullets || []
     } else {
       toast.error("Could not generate bullet")
@@ -575,8 +896,6 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
       setIsDownloadingPdf(false)
     }
   }
-
-
 
   const handleDrop = useCallback(async (e) => {
     e.preventDefault()
@@ -888,7 +1207,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
               </CardTitle>
 
               <p className="text-warm-gray font-bold uppercase tracking-wider mt-4 max-w-xl mx-auto">
-                Upload a PDF or DOCX — we’ll parse, structure, and enhance with AI.
+                Upload a PDF or DOCX — we'll parse, structure, and enhance with AI.
               </p>
             </CardHeader>
 
@@ -958,7 +1277,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
                         Drop your resume here or click to browse
                       </p>
                       <p className="text-warm-gray font-bold uppercase tracking-wider text-xs mt-2">
-                        We’ll parse and structure your content automatically
+                        We'll parse and structure your content automatically
                       </p>
                     </div>
 
@@ -1034,6 +1353,18 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
         description="Your feedback helps us create better resumes for everyone"
       />
       <Toaster richColors closeButton position="top-center" />
+
+      {/* Custom Prompt Modal */}
+      <CustomPromptModal
+        isOpen={promptModalState.isOpen}
+        onClose={handleClosePromptModal}
+        onSubmit={handleSubmitCustomPrompt}
+        isLoading={promptModalState.isLoading}
+        type={promptModalState.type}
+        currentBulletText={promptModalState.currentBulletText}
+        jobTitle={promptModalState.jobTitle}
+        company={promptModalState.company}
+      />
 
       {/* Mobile Toggle Bar */}
       <div className="md:hidden sticky top-[73px] z-20 bg-warm-cream border-b border-charcoal/10">
@@ -1278,15 +1609,35 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
 
                                   {/* Action buttons on hover */}
                                   <div className="absolute right-3 top-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                      className={`${aiBtn} h-8 px-3`}
-                                      onClick={() => handleEnhanceBullet(exp.id, bullet.id, bullet.text)}
-                                      title="Improve with AI"
-                                    >
-                                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                                      <Wand2 className="h-4 w-4 mr-2" />
-                                      Improve
-                                    </Button>
+                                    {/* Dropdown/Menu Button */}
+                                    <div className="relative group/menu">
+                                      <Button
+                                        className={`${aiBtn} h-8 px-3`}
+                                        title="AI enhancement options"
+                                      >
+                                        <Wand2 className="h-4 w-4 mr-1" />
+                                        Improve
+                                      </Button>
+
+                                      {/* Dropdown Menu */}
+                                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border-2 border-charcoal/10 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 z-50 overflow-hidden">
+                                        <button
+                                          onClick={() => handleEnhanceBullet(exp.id, bullet.id, bullet.text)}
+                                          className="w-full px-4 py-3 text-left text-sm font-bold uppercase tracking-wider text-charcoal hover:bg-soft-teal/50 flex items-center gap-2 border-b border-charcoal/10"
+                                        >
+                                          <Sparkles className="h-4 w-4 text-electric-teal" />
+                                          Auto Enhance
+                                        </button>
+
+                                        <button
+                                          onClick={() => handleOpenPromptModal("enhance", exp.id, bullet.id)}
+                                          className="w-full px-4 py-3 text-left text-sm font-bold uppercase tracking-wider text-charcoal hover:bg-soft-teal/50 flex items-center gap-2"
+                                        >
+                                          <MessageCircle className="h-4 w-4 text-ai-violet" />
+                                          Custom Prompt
+                                        </button>
+                                      </div>
+                                    </div>
 
                                     <Button
                                       variant="ghost"
@@ -1383,15 +1734,36 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
                         </div>
 
                         {/* Add Bullet Actions */}
-                        <div className="pt-2 pl-6 flex items-center gap-3">
-                          <Button
-                            className={aiBtn}
-                            onClick={() => handleAddBulletWithAI(exp.id)}
-                          >
-                            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                            <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
-                            Write with AI
-                          </Button>
+                        <div className="pt-2 pl-6 flex items-center gap-3 flex-wrap">
+                          {/* Add Bullet Dropdown */}
+                          <div className="relative group/addmenu">
+                            <Button
+                              className={aiBtn}
+                            >
+                              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                              <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
+                              Add Bullet
+                            </Button>
+
+                            {/* Dropdown Menu */}
+                            <div className="absolute left-0 bottom-full mb-2 w-56 bg-white rounded-2xl shadow-2xl border-2 border-charcoal/10 opacity-0 invisible group-hover/addmenu:opacity-100 group-hover/addmenu:visible transition-all duration-200 z-50 overflow-hidden">
+                              <button
+                                onClick={() => handleAddBulletWithAI(exp.id)}
+                                className="w-full px-4 py-3 text-left text-sm font-bold uppercase tracking-wider text-charcoal hover:bg-soft-teal/50 flex items-center gap-2 border-b border-charcoal/10"
+                              >
+                                <Sparkles className="h-4 w-4 text-electric-teal" />
+                                Auto Generate
+                              </button>
+
+                              <button
+                                onClick={() => handleOpenPromptModal("add", exp.id)}
+                                className="w-full px-4 py-3 text-left text-sm font-bold uppercase tracking-wider text-charcoal hover:bg-soft-teal/50 flex items-center gap-2"
+                              >
+                                <MessageCircle className="h-4 w-4 text-ai-violet" />
+                                Custom Prompt
+                              </button>
+                            </div>
+                          </div>
 
                           <Button
                             variant="outline"
@@ -1399,7 +1771,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
                             onClick={() => handleAddManualBullet(exp.id)}
                           >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add Bullet
+                            Manual
                           </Button>
                         </div>
 

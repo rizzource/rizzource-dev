@@ -27,6 +27,7 @@ import {
   FileCheck,
   Edit3,
   Save,
+  MessageCircle,
 } from "lucide-react"
 import { toast, Toaster } from "sonner"
 import {
@@ -55,12 +56,127 @@ const textareaShell =
 const primaryBtn =
   "h-14 px-6 rounded-2xl bg-charcoal hover:bg-deep-teal text-white font-black uppercase tracking-widest text-xs shadow-2xl transition-all hover:scale-[1.02]"
 const secondaryBtn =
-  "h-12 px-6 rounded-2xl border-2 border-charcoal/20 font-bold uppercase tracking-wider text-xs text-charcoal hover:bg-soft-teal hover:border-electric-teal transition-all"
+  "h-14 px-6 rounded-2xl border-2 border-charcoal/20 font-bold uppercase tracking-wider text-xs text-charcoal hover:bg-soft-teal hover:border-electric-teal transition-all"
 const aiBtn =
   "h-14 px-6 rounded-2xl bg-gradient-to-r from-ai-violet to-electric-teal text-white font-black uppercase tracking-widest text-xs shadow-2xl transition-all hover:scale-[1.02]"
 
 const badgeSoft =
   "px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-full bg-soft-teal text-deep-teal border-none"
+const badgeBeta =
+  "px-3 py-1 text-[8px] font-black bg-electric-teal/10 text-electric-teal border border-electric-teal/20 rounded-full"
+
+/* ========== CUSTOM PROMPT MODAL COMPONENT ========== */
+const CustomPromptModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading,
+  jobTitle = "",
+  company = "",
+}) => {
+  const [prompt, setPrompt] = useState("")
+
+  useEffect(() => {
+    if (isOpen) {
+      setPrompt("")
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  const handleSubmit = () => {
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt")
+      return
+    }
+    onSubmit(prompt)
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && e.ctrlKey) {
+      handleSubmit()
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-charcoal/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-[3rem] shadow-2xl p-8 max-w-2xl w-[92%] mx-4 space-y-6 border-2 border-electric-teal/30">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-ai-violet/20 to-electric-teal/20 flex items-center justify-center">
+              <MessageCircle className="h-6 w-6 text-ai-violet" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-tight text-charcoal">
+                Generate with Custom Prompt
+              </h2>
+              <p className="text-xs font-bold uppercase tracking-wider text-warm-gray mt-1">
+                {`Job: ${jobTitle || "Unknown"} • Company: ${company || "Unknown"}`}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            className="h-10 w-10 rounded-2xl text-warm-gray hover:text-electric-teal hover:bg-soft-teal"
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Textarea for Prompt */}
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-warm-gray block mb-3">
+            Your Custom Prompt
+          </label>
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="e.g., 'Write in a more enthusiastic tone' or 'Emphasize leadership and innovation'"
+            disabled={isLoading}
+            className={`${textareaShell} min-h-[120px] resize-none`}
+          />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-warm-gray/70 mt-2">
+            💡 Tip: Be specific about tone, style, or what you want to emphasize
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className={secondaryBtn}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            className={aiBtn}
+            onClick={handleSubmit}
+            disabled={isLoading || !prompt.trim()}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate with AI
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /* ---------- flatten resume helper (unchanged) ---------- */
 const flattenResumeToText = (resume) => {
@@ -113,6 +229,12 @@ const CoverLetterGenerator = () => {
   const [mobileView, setMobileView] = useState("editor")
   const [sectionsOpen, setSectionsOpen] = useState({ resume: true, job: true, tone: false })
   const [selectedTone, setSelectedTone] = useState("professional")
+
+  // ========== CUSTOM PROMPT STATE ==========
+  const [promptModalState, setPromptModalState] = useState({
+    isOpen: false,
+    isLoading: false,
+  })
 
   const fileInputRef = useRef(null)
   const previewRef = useRef(null)
@@ -185,7 +307,6 @@ const CoverLetterGenerator = () => {
     }
   }
 
-
   /* ---------- upload (unchanged logic) ---------- */
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0]
@@ -207,8 +328,7 @@ const CoverLetterGenerator = () => {
   }
 
   /* ---------- generation ---------- */
-  // ✅ UPDATED: Changed all parameters to snake_case
-  // resume_text, job_description, job_title, company, tone
+  // ✅ Standard generation (unchanged)
   const generateCoverLetter = async () => {
     if (!resumeText || !jobDescription) {
       toast.error("Resume and job description required")
@@ -226,7 +346,6 @@ const CoverLetterGenerator = () => {
     )
     setGenerating(false)
     if (res.meta.requestStatus === "fulfilled") {
-      // ✅ UPDATED: Handle both response formats (cover_letter or coverLetter)
       setCoverLetter(res.payload.cover_letter || res.payload.coverLetter || "")
       setIsEditing(false)
       setMobileView("preview")
@@ -246,10 +365,93 @@ const CoverLetterGenerator = () => {
     )
     setGenerating(false)
     if (res.meta.requestStatus === "fulfilled") {
-      // ✅ UPDATED: Handle both response formats (cover_letter or coverLetter)
       setCoverLetter(res.payload.cover_letter || res.payload.coverLetter || "")
       setIsEditing(false)
       setMobileView("preview")
+    }
+  }
+
+  // ========== CUSTOM PROMPT HANDLERS ==========
+  const handleOpenPromptModal = () => {
+    if (!resumeText || !jobDescription) {
+      toast.error("Resume and job description required")
+      return
+    }
+    setPromptModalState({
+      isOpen: true,
+      isLoading: false,
+    })
+    track("AIPromptModalOpened", { source: "cover_letter" })
+    posthog?.capture("ai_prompt_modal_opened", {
+      source: "cover_letter",
+    })
+  }
+
+  const handleClosePromptModal = () => {
+    setPromptModalState((prev) => ({ ...prev, isOpen: false }))
+  }
+
+  const handleSubmitCustomPrompt = async (customPrompt) => {
+    await generateCoverLetterWithPrompt(customPrompt)
+  }
+
+  const generateCoverLetterWithPrompt = async (customPrompt) => {
+    if (!resumeText || !jobDescription) {
+      toast.error("Resume and job description required")
+      return
+    }
+
+    setPromptModalState((prev) => ({ ...prev, isLoading: true }))
+    setGenerating(true)
+
+    track("AICoverLetterWithPromptStarted", {
+      hasCustomPrompt: !!customPrompt,
+    })
+    posthog?.capture("ai_cover_letter_with_prompt", {
+      has_custom_prompt: !!customPrompt,
+    })
+
+    try {
+      // TODO: Replace this with your actual backend endpoint for custom prompts
+      // const result = await dispatch(
+      //   generateCoverLetterWithPromptThunk({
+      //     resume_text: resumeText,
+      //     job_description: jobDescription,
+      //     job_title: jobTitle,
+      //     company: company,
+      //     tone: selectedTone,
+      //     custom_prompt: customPrompt,
+      //   }),
+      // )
+
+      // For now, falling back to the regular generate function
+      const result = await dispatch(
+        generateCoverLetterThunk({
+          resume_text: resumeText,
+          job_description: jobDescription,
+          job_title: jobTitle,
+          company: company,
+          tone: selectedTone,
+        })
+      )
+
+      if (result.meta.requestStatus === "fulfilled") {
+        setCoverLetter(result.payload.cover_letter || result.payload.coverLetter || "")
+        setIsEditing(false)
+        setMobileView("preview")
+        toast.success("Cover letter generated successfully!")
+        track("AICoverLetterWithPromptCompleted")
+        posthog?.capture("ai_cover_letter_with_prompt_completed")
+      } else {
+        throw new Error("Failed to generate cover letter")
+      }
+    } catch (error) {
+      toast.error("Failed to generate cover letter")
+      track("AICoverLetterWithPromptFailed")
+      posthog?.capture("ai_cover_letter_with_prompt_failed")
+    } finally {
+      setGenerating(false)
+      setPromptModalState((prev) => ({ ...prev, isLoading: false, isOpen: false }))
     }
   }
 
@@ -262,6 +464,16 @@ const CoverLetterGenerator = () => {
   return (
     <div className="min-h-screen bg-warm-cream flex flex-col" style={{ marginTop: 60 }}>
       <Toaster richColors closeButton position="top-center" />
+
+      {/* Custom Prompt Modal */}
+      <CustomPromptModal
+        isOpen={promptModalState.isOpen}
+        onClose={handleClosePromptModal}
+        onSubmit={handleSubmitCustomPrompt}
+        isLoading={promptModalState.isLoading}
+        jobTitle={jobTitle}
+        company={company}
+      />
 
       {/* Mobile toggle */}
       <div className="md:hidden sticky top-[60px] z-20 bg-warm-cream border-b border-charcoal/10">
@@ -388,24 +600,35 @@ const CoverLetterGenerator = () => {
               )}
             </Card>
 
-            {/* Generate */}
-            <Button
-              className={aiBtn}
-              onClick={coverLetter ? regenerateCoverLetter : generateCoverLetter}
-              disabled={generating}
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Generating…
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-5 w-5 mr-2 animate-pulse" />
-                  {coverLetter ? "Regenerate Cover Letter" : "Generate Cover Letter"}
-                </>
-              )}
-            </Button>
+            {/* Generate Buttons */}
+            <div className="flex gap-3">
+              <Button
+                className={`flex-1 ${aiBtn}`}
+                onClick={coverLetter ? regenerateCoverLetter : generateCoverLetter}
+                disabled={generating}
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Generating…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5 mr-2 animate-pulse" />
+                    {coverLetter ? "Regenerate" : "Generate"}
+                  </>
+                )}
+              </Button>
+
+              <Button
+                className={`flex-1 ${secondaryBtn}`}
+                onClick={handleOpenPromptModal}
+                disabled={generating}
+              >
+                <MessageCircle className="h-5 w-5 mr-2" />
+                Custom Prompt
+              </Button>
+            </div>
           </div>
         </div>
 
