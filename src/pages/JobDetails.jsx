@@ -37,9 +37,8 @@ import ResumeUpload from "@/components/jobs/ResumeUpload";
 import JobApplicationForm from "@/components/jobs/JobApplicationForm";
 
 import { toast, Toaster } from "sonner";
-import { setTempResume } from "@/redux/slices/userApiSlice";
+import { setTempResume, toggleFavoriteJobThunk } from "@/redux/slices/userApiSlice";
 import ResumeEditor from "../components/resume/ResumeEditor";
-
 export default function JobDetails() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -53,7 +52,6 @@ export default function JobDetails() {
   const [showResumeUpload, setShowResumeUpload] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
-  const [isSaved, setIsSaved] = useState(false);
 
   // Scroll tracking for animations
   useEffect(() => {
@@ -92,62 +90,32 @@ export default function JobDetails() {
       })
       : "";
 
-  // ✅ NEW: State to track favorite status locally
-  const [isFavorited, setIsFavorited] = useState(() => {
-    if (!job) return false;
-    try {
-      const favorites = JSON.parse(localStorage.getItem("favoriteJobs") || "[]");
-      return favorites.includes(job.id);
-    } catch {
-      return false;
-    }
-  });
-
   // ✅ NEW: FAVORITE JOB HANDLER using localStorage
   // Replaces the old saveFavoriteJob and RemoveFavoriteJob thunks
-  const toggleFavorite = async (jobId) => {
+  const handleToggleFavorite = (e) => {
+    e?.stopPropagation();
+
     if (!user) {
-      toast.error("Please sign in to save favorite jobs");
+      toast.error("Please sign in to save jobs");
       return;
     }
 
-    try {
-      let favorites = [];
-      try {
-        favorites = JSON.parse(localStorage.getItem("favoriteJobs") || "[]");
-      } catch {
-        favorites = [];
-      }
+    dispatch(
+      toggleFavoriteJobThunk({
+        user_id: user.Id,
+        job_id: job.id,
+        is_favorite: !job.is_favorite,
+      })
+    );
 
-      let updated;
-      if (favorites.includes(jobId)) {
-        // Remove from favorites
-        updated = favorites.filter((id) => id !== jobId);
-        setIsFavorited(false);
-        toast.success("Removed from favorites");
-        posthog?.capture('job_unfavorited', {
-          job_id: jobId,
-          job_title: job.jobTitle || job.title,
-          company: job.firmName
-        });
-      } else {
-        // Add to favorites
-        updated = [...favorites, jobId];
-        setIsFavorited(true);
-        toast.success("Added to favorites");
-        posthog?.capture('job_favorited', {
-          job_id: jobId,
-          job_title: job.jobTitle || job.title,
-          company: job.firmName
-        });
-      }
-
-      localStorage.setItem("favoriteJobs", JSON.stringify(updated));
-    } catch (err) {
-      console.error("Favorite job error:", err);
-      toast.error("Something went wrong while saving your job.");
-    }
+    posthog?.capture("job_favorite_toggled", {
+      job_id: job.id,
+      job_title: job.jobTitle,
+      company: job.firmName,
+      is_favorite: !job.is_favorite,
+    });
   };
+
 
   // Resume Upload
   const handleResumeUpload = (fileOrUrl, extractedText) => {
@@ -309,20 +277,21 @@ export default function JobDetails() {
 
                   {/* Favorite Job Button */}
                   <button
-                    onClick={() => toggleFavorite(job.id)}
+                    onClick={handleToggleFavorite}
                     className="flex items-center gap-2 px-3 py-2 rounded-full border border-charcoal/10 bg-white hover:bg-soft-teal hover:border-electric-teal transition-all group"
                     aria-label="Favorite Job"
                   >
                     <Heart
-                      className={`w-4 h-4 transition-colors ${isFavorited
+                      className={`w-4 h-4 transition-colors ${job.is_favorite
                           ? "fill-electric-teal text-electric-teal"
                           : "text-charcoal group-hover:text-electric-teal"
                         }`}
                     />
                     <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">
-                      {isFavorited ? "Saved" : "Save"}
+                      {job.is_favorite ? "Saved" : "Save"}
                     </span>
                   </button>
+
                 </div>
 
 

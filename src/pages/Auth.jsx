@@ -49,7 +49,7 @@ const Auth = () => {
   useEffect(() => {
     if (user) {
       // Identify user with PostHog
-      const userId = user.id || user.user_id || user.userId || user.email;
+      const userId = user.Id || user.user_id || user.userId || user.email;
       const userName = user.name || user.full_name || `${user.firstName} ${user.lastName}` || "User";
 
       posthog?.identify(
@@ -61,8 +61,8 @@ const Auth = () => {
       );
 
       // Fetch full user data if we have user_id
-      if (user.user_id || user.id) {
-        dispatch(getUserById({ user_id: user.user_id || user.id }));
+      if (user.user_id || user.Id) {
+        dispatch(getUserById({ user_id: user.user_id || user.Id }));
       }
 
       const returnTo = window.history.state?.usr?.returnTo;
@@ -96,7 +96,8 @@ const Auth = () => {
       // Call loginUser with email and password
       const result = await dispatch(loginUser({
         email,
-        password
+        password,
+        full_name: "User"
       }));
 
       if (result.error) {

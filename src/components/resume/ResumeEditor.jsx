@@ -642,20 +642,11 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
     })
 
     try {
-      // TODO: Replace this with your actual backend endpoint for custom prompts
-      // const result = await dispatch(
-      //   enhanceBulletWithPromptThunk({
-      //     bullet_text: bullet.text,
-      //     job_title: exp.title,
-      //     custom_prompt: customPrompt,
-      //   }),
-      // )
-
-      // For now, falling back to the regular improve function
       const result = await dispatch(
         improveBulletThunk({
           bullet_text: bullet.text,
           job_title: exp.title,
+          user_prompt: customPrompt || "",
         }),
       )
 
@@ -712,20 +703,11 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
     })
 
     try {
-      // TODO: Replace this with your actual backend endpoint for custom prompts
-      // const result = await dispatch(
-      //   generateBulletWithPromptThunk({
-      //     job_title: exp.title,
-      //     company: exp.company,
-      //     custom_prompt: customPrompt,
-      //   }),
-      // )
-
-      // For now, falling back to the regular generate function
       const result = await dispatch(
         generateNewBulletThunk({
           job_title: exp.title,
           company: exp.company,
+          user_prompt: customPrompt || "",
         }),
       )
 
@@ -762,6 +744,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
       improveBulletThunk({
         bullet_text: bulletText,
         job_title: jobTitle,
+        user_prompt: "",
       }),
     )
 
@@ -778,6 +761,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
       generateNewBulletThunk({
         job_title: jobTitle,
         company: company,
+        user_prompt: "",
       }),
     )
 

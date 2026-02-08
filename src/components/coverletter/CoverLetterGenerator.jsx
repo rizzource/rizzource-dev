@@ -329,6 +329,7 @@ const CoverLetterGenerator = () => {
 
   /* ---------- generation ---------- */
   // ✅ Standard generation (unchanged)
+  // ✅ Standard generation (with user_prompt: "")
   const generateCoverLetter = async () => {
     if (!resumeText || !jobDescription) {
       toast.error("Resume and job description required")
@@ -341,7 +342,8 @@ const CoverLetterGenerator = () => {
         job_description: jobDescription,
         job_title: jobTitle,
         company: company,
-        tone: selectedTone
+        tone: selectedTone,
+        user_prompt: "",
       })
     )
     setGenerating(false)
@@ -360,7 +362,8 @@ const CoverLetterGenerator = () => {
         job_description: jobDescription,
         job_title: jobTitle,
         company: company,
-        tone: selectedTone
+        tone: selectedTone,
+        user_prompt: "",
       })
     )
     setGenerating(false)
@@ -412,19 +415,6 @@ const CoverLetterGenerator = () => {
     })
 
     try {
-      // TODO: Replace this with your actual backend endpoint for custom prompts
-      // const result = await dispatch(
-      //   generateCoverLetterWithPromptThunk({
-      //     resume_text: resumeText,
-      //     job_description: jobDescription,
-      //     job_title: jobTitle,
-      //     company: company,
-      //     tone: selectedTone,
-      //     custom_prompt: customPrompt,
-      //   }),
-      // )
-
-      // For now, falling back to the regular generate function
       const result = await dispatch(
         generateCoverLetterThunk({
           resume_text: resumeText,
@@ -432,6 +422,7 @@ const CoverLetterGenerator = () => {
           job_title: jobTitle,
           company: company,
           tone: selectedTone,
+          user_prompt: customPrompt || "",
         })
       )
 

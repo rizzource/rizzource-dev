@@ -32,7 +32,8 @@ import ResumeEditor from "@/components/resume/ResumeEditor";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getJobs,
-  // getFavoriteJobs,
+  getFavoriteJobsThunk,
+  toggleFavoriteJobThunk,
   setSelectedJob,
   getStatesThunk,
   getFirmsThunk,
@@ -51,10 +52,11 @@ function JobPortalFunc() {
   const posthog = usePostHog();
 
   // Redux state
-  const { jobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h, states, firms, practices } = useSelector(
+  const { jobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h, states, firms, practices, user } = useSelector(
     (state) => state.userApi
   );
 
+  const userId = user?.Id;
   // UI state
   const [scrollY, setScrollY] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
@@ -105,6 +107,20 @@ function JobPortalFunc() {
     dispatch(getPracticesThunk());
   }, [dispatch]);
 
+  useEffect(() => {
+    const isFavorites = window.location.href.includes("favoritejobs");
+    if (!isFavorites || !userId) return;
+
+    dispatch(
+      getFavoriteJobsThunk({
+        user_id: userId,
+        page: currentPageNum,
+        page_size: pageSize || 9,
+      })
+    );
+  }, [dispatch, userId, currentPageNum, pageSize]);
+
+
   // ------------------------------------------------------------
   // FETCH JOBS WITH PAGINATION & FILTERS
   // ------------------------------------------------------------
@@ -135,7 +151,7 @@ function JobPortalFunc() {
     if (selectedFirm) {
       params.firm_name = selectedFirm;
     }
-    dispatch(getJobs(params));
+    dispatch(getJobs({ ...params, user_id: userId }));
 
     track("JobPortalViewed");
     posthog?.capture("$pageview");
@@ -277,9 +293,32 @@ function JobPortalFunc() {
   };
 
   const handleFavoriteClick = (e, job) => {
-    e.stopPropagation(); // 👈 VERY IMPORTANT (prevents card click)
-    console.log("Favorited job:", job.id);
+    e.stopPropagation();
+
+    if (!userId) {
+      toast.error("Please sign in to save jobs");
+      return;
+    }
+
+    dispatch(
+      toggleFavoriteJobThunk({
+        user_id: userId,
+        job_id: job.id?.toString(),
+        is_favorite: !job.is_favorite,
+      })
+    );
+
+    track("JobFavorited", {
+      jobId: job.id,
+      isFavorite: !job.is_favorite,
+    });
+
+    posthog?.capture("job_favorite_toggled", {
+      job_id: job.id,
+      is_favorite: !job.is_favorite,
+    });
   };
+
 
 
   const isBadJob = (job) =>
@@ -546,11 +585,10 @@ function JobPortalFunc() {
           <div className="container mx-auto">
             {/* EXPANDED LAYOUT (default / on scroll up) */}
             <div
-              className={`transition-all duration-300 ${
-                isSearchBarSticky
-                  ? "opacity-0 -translate-y-2 pointer-events-none max-h-0"
-                  : "opacity-100 translate-y-0 pointer-events-auto max-h-none sm:max-h-[260px]"
-              }`}
+              className={`transition-all duration-300 ${isSearchBarSticky
+                ? "opacity-0 -translate-y-2 pointer-events-none max-h-0"
+                : "opacity-100 translate-y-0 pointer-events-auto max-h-none sm:max-h-[260px]"
+                }`}
             >
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
                 <div className="flex items-center gap-3">
@@ -982,7 +1020,7 @@ function JobPortalFunc() {
                                   aria-label="Favorite Job"
                                 >
                                   <Heart
-                                    className={`w-4 h-4 transition-colors ${job.isFavorited
+                                    className={`w-4 h-4 transition-colors ${job.is_favorite
                                       ? "fill-electric-teal text-electric-teal"
                                       : "text-charcoal group-hover/fav:text-electric-teal"
                                       }`}

@@ -40,11 +40,12 @@ const restored = storedSession ? decrypt(storedSession) : null;
 // LOGIN USER
 export const loginUser = createAsyncThunk(
     "user/loginUser",
-    async ({ email, password }, { rejectWithValue }) => {
+    async ({ email, password, full_name = user }, { rejectWithValue }) => {
         try {
             const res = await axios.post(`${BASE_URL}/users/login`, {
                 email,
                 password,
+                full_name
             });
             return res.data;
         } catch (err) {
@@ -124,25 +125,42 @@ export const submitFeedbackThunk = createAsyncThunk(
 // GET JOBS (SCRAPING ENDPOINT)
 export const getJobs = createAsyncThunk(
     "scraping/getJobs",
-    async ({ page = 1, page_size = 9, state, practice_area, year_eligibility, search_term, firm_name, sort_by = "newest" } = {}, { rejectWithValue }) => {
+    async (
+        {
+            page = 1,
+            page_size = 9,
+            state,
+            practice_area,
+            year_eligibility,
+            search_term,
+            firm_name,
+            sort_by = "newest",
+            user_id,
+        } = {},
+        { rejectWithValue }
+    ) => {
         try {
             const params = new URLSearchParams();
             params.append("page", page);
             params.append("page_size", page_size);
             if (state) params.append("state", state);
-            if (practice_area) params.append("practice", practice_area);
+            if (practice_area) params.append("practice_area", practice_area);
             if (year_eligibility) params.append("year_eligibility", year_eligibility);
-            if (search_term) params.append("query", search_term)
+            if (search_term) params.append("query", search_term);
             if (firm_name) params.append("firm", firm_name);
+            if (user_id) params.append("user_id", user_id);
             params.append("sort_by", sort_by);
 
-            const res = await axios.get(`${BASE_URL}/scraping/jobs?${params.toString()}`);
+            const res = await axios.get(
+                `${BASE_URL}/scraping/jobs?${params.toString()}`
+            );
             return res.data;
         } catch (err) {
             return rejectWithValue(err.response?.data?.message);
         }
     }
 );
+
 
 // TRIGGER SCRAPING JOB
 export const triggerScrapingJob = createAsyncThunk(
@@ -183,11 +201,12 @@ export const fileUpload = createAsyncThunk(
 // GENERATE BULLETS
 export const generateBulletsThunk = createAsyncThunk(
     "resume/generateBullets",
-    async ({ role, description }, { rejectWithValue }) => {
+    async ({ role, description, user_prompt }, { rejectWithValue }) => {
         try {
             const res = await axios.post(`${BASE_URL}/resume/generate-bullets`, {
                 role,
                 description,
+                user_prompt,
             });
             return res.data;
         } catch (err) {
@@ -198,10 +217,21 @@ export const generateBulletsThunk = createAsyncThunk(
     }
 );
 
+
 // GENERATE COVER LETTER
 export const generateCoverLetterThunk = createAsyncThunk(
     "resume/generateCoverLetter",
-    async ({ resume_text, job_description, job_title = "Applicant", company = "Company", tone = "Professional" }, { rejectWithValue }) => {
+    async (
+        {
+            resume_text,
+            job_description,
+            job_title = "Applicant",
+            company = "Company",
+            tone = "Professional",
+            user_prompt,
+        },
+        { rejectWithValue }
+    ) => {
         try {
             const res = await axios.post(`${BASE_URL}/resume/generate-cover-letter`, {
                 resume_text,
@@ -209,6 +239,7 @@ export const generateCoverLetterThunk = createAsyncThunk(
                 job_title,
                 company,
                 tone,
+                user_prompt,
             });
             return res.data;
         } catch (err) {
@@ -219,10 +250,11 @@ export const generateCoverLetterThunk = createAsyncThunk(
     }
 );
 
+
 // REGENERATE COVER LETTER
 export const reGenerateCoverLetterThunk = createAsyncThunk(
     "resume/regenerateCoverLetter",
-    async ({ resume_text, job_description, job_title = "Applicant", company = "Company", tone = "Professional" }, { rejectWithValue }) => {
+    async ({ resume_text, job_description, job_title = "Applicant", company = "Company", tone = "Professional", user_prompt = "" }, { rejectWithValue }) => {
         try {
             const res = await axios.post(`${BASE_URL}/resume/regenerate-cover-letter`, {
                 resume_text,
@@ -230,6 +262,7 @@ export const reGenerateCoverLetterThunk = createAsyncThunk(
                 job_title,
                 company,
                 tone,
+                user_prompt
             });
             return res.data;
         } catch (err) {
@@ -243,29 +276,33 @@ export const reGenerateCoverLetterThunk = createAsyncThunk(
 // IMPROVE BULLET
 export const improveBulletThunk = createAsyncThunk(
     "resume/improveBullet",
-    async ({ bullet_text, job_title }, { rejectWithValue }) => {
+    async (
+        { bullet_text, job_title, user_prompt },
+        { rejectWithValue }
+    ) => {
         try {
-            const res = await axios.post(`${BASE_URL}/resume/improve-bullet`, {
-                bullet_text,
-                job_title,
-            });
-            return res.data;
+            const res = await axios.post(`${BASE_URL}/resume/generate-bullets`, {
+                role: job_title,
+                description: bullet_text,
+                user_prompt,
+            })
+            return res.data
         } catch (err) {
-            return rejectWithValue(
-                err.response?.data?.message || "Failed to improve bullet"
-            );
+            return rejectWithValue(err.response?.data?.message)
         }
     }
-);
+)
+
 
 // GENERATE NEW BULLET
 export const generateNewBulletThunk = createAsyncThunk(
     "resume/generateNewBullet",
-    async ({ job_title, company }, { rejectWithValue }) => {
+    async ({ job_title, company, user_prompt }, { rejectWithValue }) => {
         try {
             const res = await axios.post(`${BASE_URL}/resume/generate-new-bullet`, {
                 job_title,
                 company,
+                user_prompt
             });
             return res.data;
         } catch (err) {
@@ -289,6 +326,42 @@ export const rewriteResumeThunk = createAsyncThunk(
         } catch (err) {
             return rejectWithValue(
                 err.response?.data?.message || "Failed to rewrite resume"
+            );
+        }
+    }
+);
+
+//FAVORITE JOBS
+
+export const getFavoriteJobsThunk = createAsyncThunk(
+    "scraping/getFavoriteJobs",
+    async ({ user_id, page = 1, page_size = 9 }, { rejectWithValue }) => {
+        try {
+            const res = await axios.get(`${BASE_URL}/scraping/favorite-jobs`, {
+                params: { user_id, page, page_size },
+            });
+            return res.data;
+        } catch (err) {
+            return rejectWithValue(
+                err.response?.data?.message || "Failed to fetch favorite jobs"
+            );
+        }
+    }
+);
+
+export const toggleFavoriteJobThunk = createAsyncThunk(
+    "scraping/toggleFavorite",
+    async ({ user_id, job_id, is_favorite }, { rejectWithValue }) => {
+        try {
+            const res = await axios.post(`${BASE_URL}/scraping/toggle-favorite`, {
+                user_id,
+                job_id,
+                is_favorite,
+            });
+            return { job_id, is_favorite };
+        } catch (err) {
+            return rejectWithValue(
+                err.response?.data?.message || "Failed to toggle favorite"
             );
         }
     }
@@ -427,7 +500,7 @@ const initialState = {
     token: restored?.token || null,
     user: restored?.user || null,
     roles: restored?.roles || [],
-
+    favoriteJobs: [],
     // Scraping data
     jobs: [],
     totalJobs: 0,
@@ -502,7 +575,7 @@ const userApiSlice = createSlice({
                 state.roles = action.payload.roles || [];
                 const encrypted = encrypt({
                     token: action.payload.token,
-                    user: action.payload.user || action.payload.data,
+                    user: action.payload || action.payload.data,
                     roles: action.payload.roles || [],
                 });
                 localStorage.setItem("rizzource_session", encrypted);
@@ -554,7 +627,7 @@ const userApiSlice = createSlice({
             .addCase(googleLogin.fulfilled, (state, action) => {
                 state.loading = false;
                 state.token = action.payload.token;
-                state.user = action.payload.user || action.payload.data;
+                state.user = action.payload || action.payload.data;
                 state.roles = action.payload.roles || [];
                 const encrypted = encrypt({
                     token: action.payload.token,
@@ -837,6 +910,30 @@ const userApiSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload;
             });
+
+        // --------- GET FAVORITE JOBS ---------
+        builder
+            .addCase(getFavoriteJobsThunk.pending, (state) => {
+                state.loading = true;
+            })
+            .addCase(getFavoriteJobsThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.favoriteJobs = action.payload.jobs || [];
+            })
+            .addCase(getFavoriteJobsThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            });
+
+        // --------- TOGGLE FAVORITE ---------
+        builder.addCase(toggleFavoriteJobThunk.fulfilled, (state, action) => {
+            const { job_id, is_favorite } = action.payload;
+
+            state.jobs = state.jobs.map(job =>
+                job.id === job_id ? { ...job, is_favorite } : job
+            );
+        });
+
     },
 });
 

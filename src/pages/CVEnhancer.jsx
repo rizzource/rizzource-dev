@@ -57,7 +57,7 @@ const CVEnhancer = () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("resume_url, resume_file_name")
-        .eq("id", user.id)
+        .eq("id", user.Id)
         .single();
 
       if (error) throw error;
@@ -344,7 +344,7 @@ const CVEnhancer = () => {
         resumeText: originalText || "NO_EXTRACTED_TEXT",
         jobDescription: job?.description || "",
         jobTitle: job?.title || "",
-        userID: user.id
+        userID: user.Id
       };
       const resp = await dummyEnhanceCvApi(payload);
       setEnhancedText(resp.enhancedCV || "");
@@ -454,7 +454,7 @@ const CVEnhancer = () => {
       console.log("DOCX blob created:", blob);
 
       const fileName = `enhanced-cv-${(job?.title || 'cv').replace(/\s+/g, '-')}-${Date.now()}`;
-      const path = `enhanced-cvs/${user.id}/${fileName}.docx`;
+      const path = `enhanced-cvs/${user.Id}/${fileName}.docx`;
       console.log("Uploading to Supabase at path:", path);
 
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -485,7 +485,7 @@ const CVEnhancer = () => {
       const { error: dbError } = await supabase
         .from('enhanced_cvs')
         .insert({
-          user_id: user.id,
+          user_id: user.Id,
           job_id: job?.id || null,
           file_path: path,
           public_url: publicUrl

@@ -59,7 +59,7 @@ const OutlineView = () => {
               .from('outline_ratings')
               .select('rating')
               .eq('outline_id', id)
-              .eq('user_id', user.data.user.id)
+              .eq('user_id', user.data.user.Id)
               .maybeSingle();
             
             if (ratingData) {
@@ -142,7 +142,7 @@ const OutlineView = () => {
         .from('outline_ratings')
         .select('id')
         .eq('outline_id', id)
-        .eq('user_id', user.id)
+        .eq('user_id', user.Id)
         .maybeSingle();
 
       if (existingRating) {
@@ -159,7 +159,7 @@ const OutlineView = () => {
           .from('outline_ratings')
           .insert({
             outline_id: id,
-            user_id: user.id,
+            user_id: user.Id,
             rating
           });
         

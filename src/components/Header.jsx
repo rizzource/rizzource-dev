@@ -73,6 +73,19 @@ const Header = () => {
             </Link>
           )}
 
+          {user &&
+            <Link
+              to="/favoritejobs"
+              className="relative group overflow-hidden py-1 font-bold uppercase tracking-widest text-xs text-warm-gray hover:text-electric-teal transition-colors"
+            >
+              <span className="inline-block transition-transform duration-300 group-hover:-translate-y-full">
+                Favorite Jobs
+              </span>
+              <span className="absolute left-0 top-full inline-block transition-transform duration-300 group-hover:-translate-y-full text-electric-teal">
+                Favorite Jobs
+              </span>
+            </Link>
+          }
           {/* Explore Jobs Link */}
           <Link
             to="/jobs"

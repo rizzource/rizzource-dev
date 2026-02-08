@@ -33,7 +33,7 @@ const MyApplications = () => {
           event: '*',
           schema: 'public',
           table: 'job_applications',
-          filter: `applicant_id=eq.${user.id}`
+          filter: `applicant_id=eq.${user.Id}`
         },
         () => {
           // Refetch applications when any change occurs
@@ -66,7 +66,7 @@ const MyApplications = () => {
             )
           )
         `)
-        .eq('applicant_id', user.id)
+        .eq('applicant_id', user.Id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

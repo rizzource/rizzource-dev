@@ -493,7 +493,7 @@ export const AdminDashboard = () => {
         location: eventForm.location,
         time: eventForm.time,
         priority: eventForm.priority,
-        created_by: user.id
+        created_by: user.Id
       };
 
       const { data, error } = await supabase
