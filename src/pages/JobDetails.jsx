@@ -103,7 +103,7 @@ export default function JobDetails() {
     dispatch(
       toggleFavoriteJobThunk({
         user_id: user.Id,
-        job_id: job.id,
+        job_id: job.job_id,
         is_favorite: !job.is_favorite,
       })
     );

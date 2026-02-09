@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, Suspense } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef, Suspense, useCallback } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,20 +50,19 @@ function JobPortalFunc() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const posthog = usePostHog();
-
+  const location = useLocation();
   // Redux state
   const { jobs, loading, favoriteJobs, tempResume, totalJobs, currentPage, pageSize, newJobs24h, states, firms, practices, user } = useSelector(
     (state) => state.userApi
   );
-
   const userId = user?.Id;
   // UI state
   const [scrollY, setScrollY] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedFirm, setSelectedFirm] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("All");
-  const [selectedType, setSelectedType] = useState("All");
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [selectedType, setSelectedType] = useState("");
   const [selectedState, setSelectedState] = useState(""); // For API filtering
   const [selectedPracticeArea, setSelectedPracticeArea] = useState(""); // For API filtering
   const [selectedYearEligibility, setSelectedYearEligibility] = useState(""); // For API filtering
@@ -118,19 +117,19 @@ function JobPortalFunc() {
         page_size: pageSize || 9,
       })
     );
-  }, [dispatch, userId, currentPageNum, pageSize]);
+  }, [dispatch, userId, currentPageNum, pageSize, location.pathname]);
 
 
   // ------------------------------------------------------------
   // FETCH JOBS WITH PAGINATION & FILTERS
   // ------------------------------------------------------------
-  useEffect(() => {
+  const fetchJobs = useCallback(() => {
     const isFavorites = window.location.href.includes("favoritejobs");
-    if (isFavorites) return;
 
     const params = {
       page: currentPageNum,
       page_size: pageSize || 9,
+      user_id: userId,
     };
 
     if (selectedState && selectedState !== "All") {
@@ -146,12 +145,14 @@ function JobPortalFunc() {
     }
 
     if (debouncedSearchTerm) {
-      params.search_term = debouncedSearchTerm; // 🔑 maps to backend `query`
+      params.search_term = debouncedSearchTerm;
     }
+
     if (selectedFirm) {
       params.firm_name = selectedFirm;
     }
-    dispatch(getJobs({ ...params, user_id: userId }));
+
+    dispatch(isFavorites ? getFavoriteJobsThunk(params) : getJobs(params));
 
     track("JobPortalViewed");
     posthog?.capture("$pageview");
@@ -159,17 +160,27 @@ function JobPortalFunc() {
     dispatch,
     posthog,
     currentPageNum,
-    selectedFirm,
+    pageSize,
+    userId,
     selectedState,
     selectedPracticeArea,
     selectedYearEligibility,
     debouncedSearchTerm,
-    pageSize,
+    selectedFirm,
+  ]);
+
+  useEffect(() => {
+    // const isFavorites = window.location.href.includes("favoritejobs");
+    // if (isFavorites) return;
+
+    fetchJobs();
+  }, [
+    fetchJobs, location.pathname
   ]);
   // Auto-set Georgia as default state on first load
   useEffect(() => {
     if (currentPageNum === 1 && selectedState === "") {
-      setSelectedState("All");
+      setSelectedState("");
     }
   }, []);
 
@@ -237,7 +248,7 @@ function JobPortalFunc() {
 
   // Auto-scroll to results when search/filter changes (using debounced search)
   useEffect(() => {
-    if (resultsRef.current && (debouncedSearchTerm || selectedFirm !== "All" || selectedState !== "All" || selectedType !== "All")) {
+    if (resultsRef.current && (debouncedSearchTerm || selectedFirm !== "" || selectedState !== "" || selectedType !== "")) {
       setTimeout(() => {
         const headerOffset = 160; // Account for sticky header + search bar
         const elementPosition = resultsRef.current.getBoundingClientRect().top;
@@ -292,7 +303,7 @@ function JobPortalFunc() {
     return null;
   };
 
-  const handleFavoriteClick = (e, job) => {
+  const handleFavoriteClick = async (e, job) => {
     e.stopPropagation();
 
     if (!userId) {
@@ -300,25 +311,34 @@ function JobPortalFunc() {
       return;
     }
 
-    dispatch(
-      toggleFavoriteJobThunk({
-        user_id: userId,
-        job_id: job.id?.toString(),
+    try {
+      await dispatch(
+        toggleFavoriteJobThunk({
+          user_id: userId,
+          job_id: job?.job_id,
+          is_favorite: !job.is_favorite,
+        })
+      ).unwrap(); // 👈 important
+
+      toast.success(
+        job.is_favorite ? "Removed from favorites" : "Saved to favorites"
+      );
+
+      fetchJobs();
+
+      track("JobFavorited", {
+        jobId: job.id,
+        isFavorite: !job.is_favorite,
+      });
+
+      posthog?.capture("job_favorite_toggled", {
+        job_id: job.id,
         is_favorite: !job.is_favorite,
-      })
-    );
-
-    track("JobFavorited", {
-      jobId: job.id,
-      isFavorite: !job.is_favorite,
-    });
-
-    posthog?.capture("job_favorite_toggled", {
-      job_id: job.id,
-      is_favorite: !job.is_favorite,
-    });
+      });
+    } catch (err) {
+      toast.error(err || "Failed to update favorite");
+    }
   };
-
 
 
   const isBadJob = (job) =>
@@ -407,9 +427,9 @@ function JobPortalFunc() {
 
   const handleResetFilters = () => {
     setSearchTerm("");
-    setSelectedFirm("All");
-    setSelectedState("All"); // Reset to default Georgia filter
-    setSelectedType("All");
+    setSelectedFirm("");
+    setSelectedState(""); // Reset to default Georgia filter
+    setSelectedType("");
     setSelectedPracticeArea("");
     setSelectedYearEligibility("");
     setCurrentPageNum(1);
@@ -419,9 +439,9 @@ function JobPortalFunc() {
 
   const hasActiveFilters =
     searchTerm ||
-    selectedFirm !== "All" ||
-    selectedState !== "All" ||
-    selectedType !== "All" ||
+    selectedFirm !== "" ||
+    selectedState !== "" ||
+    selectedType !== "" ||
     selectedPracticeArea !== "" ||
     selectedYearEligibility !== "";
 

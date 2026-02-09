@@ -27,6 +27,39 @@ const decrypt = (cipher) => {
     }
 };
 
+const normalizeJobsResponse = (payload) => {
+    const jobsData = payload.jobs || payload.data || [];
+
+    return {
+        jobs: jobsData.map(job => ({
+            id: job.id,
+            firmName: job.firm,
+            jobTitle: job.title,
+            location: job.location,
+            salary: job.salary,
+            applicationDeadline: job.deadline,
+            jobDescription: job.description,
+            jobType: job.title?.toLowerCase().includes("summer")
+                ? "Summer Internship"
+                : "Program",
+            areaOfLaw: job.practice_area,
+            jobUrl: job.url,
+            source: job.source,
+            state: job.state,
+            class_year: job.class_year,
+            posting_date: job.posting_date,
+            created_at: job.created_at,
+            job_id: job.job_id,
+            is_favorite: job.is_favorite,
+        })),
+        totalJobs: payload.total_jobs || payload.totalJobs || 0,
+        newJobs24h: payload.new_jobs_24h || payload.newJobs24h || 0,
+        lastUpdated: payload.last_updated || payload.lastUpdated || null,
+        currentPage: payload.page || payload.currentPage || 1,
+        pageSize: payload.page_size || payload.pageSize || 9,
+    };
+};
+
 // ----------------------------------- 
 // RESTORED SESSION
 // ----------------------------------- 
@@ -335,11 +368,39 @@ export const rewriteResumeThunk = createAsyncThunk(
 
 export const getFavoriteJobsThunk = createAsyncThunk(
     "scraping/getFavoriteJobs",
-    async ({ user_id, page = 1, page_size = 9 }, { rejectWithValue }) => {
+    async (
+        {
+            page = 1,
+            page_size = 9,
+            state,
+            practice_area,
+            year_eligibility,
+            search_term,
+            firm_name,
+            sort_by = "newest",
+            user_id,
+        } = {},
+        { rejectWithValue }
+    ) => {
         try {
-            const res = await axios.get(`${BASE_URL}/scraping/favorite-jobs`, {
-                params: { user_id, page, page_size },
-            });
+            const params = new URLSearchParams();
+
+            params.append("page", page);
+            params.append("page_size", page_size);
+
+            if (state) params.append("state", state);
+            if (practice_area) params.append("practice_area", practice_area);
+            if (year_eligibility) params.append("year_eligibility", year_eligibility);
+            if (search_term) params.append("query", search_term);
+            if (firm_name) params.append("firm", firm_name);
+            if (user_id) params.append("user_id", user_id);
+
+            params.append("sort_by", sort_by);
+
+            const res = await axios.get(
+                `${BASE_URL}/scraping/favorite-jobs?${params.toString()}`
+            );
+
             return res.data;
         } catch (err) {
             return rejectWithValue(
@@ -348,6 +409,7 @@ export const getFavoriteJobsThunk = createAsyncThunk(
         }
     }
 );
+
 
 export const toggleFavoriteJobThunk = createAsyncThunk(
     "scraping/toggleFavorite",
@@ -604,7 +666,7 @@ const userApiSlice = createSlice({
             .addCase(registerUser.fulfilled, (state, action) => {
                 state.loading = false;
                 state.token = action.payload.token;
-                state.user = action.payload|| action.payload.data;
+                state.user = action.payload || action.payload.data;
                 state.roles = action.payload.roles || [];
                 const encrypted = encrypt({
                     token: action.payload.token,
@@ -688,30 +750,17 @@ const userApiSlice = createSlice({
             })
             .addCase(getJobs.fulfilled, (state, action) => {
                 state.loading = false;
-                const jobsData = action.payload.jobs || action.payload.data || [];
-                state.jobs = jobsData.map(job => ({
-                    id: job.id,
-                    firmName: job.firm,
-                    jobTitle: job.title,
-                    location: job.location,
-                    salary: job.salary,
-                    applicationDeadline: job.deadline,
-                    jobDescription: job.description,
-                    jobType: job.title.toLowerCase().includes('summer') ? 'Summer Internship' : 'Program',
-                    areaOfLaw: job.practice_area,
-                    jobUrl: job.url,
-                    source: job.source,
-                    state: job.state,
-                    class_year: job.class_year,
-                    posting_date: job.posting_date,
-                    created_at: job.created_at,
-                }));
-                state.totalJobs = action.payload.total_jobs || action.payload.totalJobs || 0;
-                state.newJobs24h = action.payload.new_jobs_24h || action.payload.newJobs24h || 0;
-                state.lastUpdated = action.payload.last_updated || action.payload.lastUpdated;
-                state.currentPage = action.payload.page || action.payload.currentPage || 1;
-                state.pageSize = action.payload.page_size || action.payload.pageSize || 9;
+
+                const normalized = normalizeJobsResponse(action.payload);
+
+                state.jobs = normalized.jobs;
+                state.totalJobs = normalized.totalJobs;
+                state.newJobs24h = normalized.newJobs24h;
+                state.lastUpdated = normalized.lastUpdated;
+                state.currentPage = normalized.currentPage;
+                state.pageSize = normalized.pageSize;
             })
+
             .addCase(getJobs.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
@@ -918,8 +967,15 @@ const userApiSlice = createSlice({
             })
             .addCase(getFavoriteJobsThunk.fulfilled, (state, action) => {
                 state.loading = false;
-                state.favoriteJobs = action.payload.jobs || [];
+
+                const normalized = normalizeJobsResponse(action.payload);
+
+                state.favoriteJobs = normalized.jobs;
+                state.totalJobs = normalized.totalJobs;
+                state.currentPage = normalized.currentPage;
+                state.pageSize = normalized.pageSize;
             })
+
             .addCase(getFavoriteJobsThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
@@ -929,10 +985,25 @@ const userApiSlice = createSlice({
         builder.addCase(toggleFavoriteJobThunk.fulfilled, (state, action) => {
             const { job_id, is_favorite } = action.payload;
 
+            // Update jobs list
             state.jobs = state.jobs.map(job =>
-                job.id === job_id ? { ...job, is_favorite } : job
+                job.job_id === job_id ? { ...job, is_favorite } : job
             );
+
+            // Update favorites list
+            state.favoriteJobs = state.favoriteJobs.map(job =>
+                job.job_id === job_id ? { ...job, is_favorite } : job
+            );
+
+            // ✅ Update selectedJob (THIS fixes JobDetails runtime sync)
+            if (state.selectedJob?.job_id === job_id) {
+                state.selectedJob = {
+                    ...state.selectedJob,
+                    is_favorite,
+                };
+            }
         });
+
 
     },
 });
