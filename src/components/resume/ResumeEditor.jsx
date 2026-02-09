@@ -651,8 +651,8 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
       )
 
       if (result.meta.requestStatus === "fulfilled") {
-        const suggestions = result.payload.improved_bullet
-          ? [result.payload.improved_bullet]
+        const suggestions = result.payload.bullets
+          ? [result.payload.bullets]
           : result.payload.improvements || []
 
         setEnhanceAiSuggestions(
@@ -749,7 +749,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
     )
 
     if (result.meta.requestStatus === "fulfilled") {
-      return result.payload.improved_bullet ? [result.payload.improved_bullet] : result.payload.improvements || []
+      return result.payload.bullets ? [result.payload.bullets] : result.payload.improvements || []
     } else {
       toast.error("Failed to improve bullet")
       return []
