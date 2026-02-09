@@ -61,7 +61,7 @@ function JobPortalFunc() {
   const [scrollY, setScrollY] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [selectedFirm, setSelectedFirm] = useState("All");
+  const [selectedFirm, setSelectedFirm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("All");
   const [selectedType, setSelectedType] = useState("All");
   const [selectedState, setSelectedState] = useState(""); // For API filtering

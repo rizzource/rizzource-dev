@@ -571,7 +571,7 @@ const userApiSlice = createSlice({
             .addCase(loginUser.fulfilled, (state, action) => {
                 state.loading = false;
                 state.token = action.payload.token;
-                state.user = action.payload.user || action.payload.data;
+                state.user = action.payload || action.payload.data;
                 state.roles = action.payload.roles || [];
                 const encrypted = encrypt({
                     token: action.payload.token,
@@ -604,11 +604,11 @@ const userApiSlice = createSlice({
             .addCase(registerUser.fulfilled, (state, action) => {
                 state.loading = false;
                 state.token = action.payload.token;
-                state.user = action.payload.user || action.payload.data;
+                state.user = action.payload|| action.payload.data;
                 state.roles = action.payload.roles || [];
                 const encrypted = encrypt({
                     token: action.payload.token,
-                    user: action.payload.user || action.payload.data,
+                    user: action.payload || action.payload.data,
                     roles: action.payload.roles || [],
                 });
                 localStorage.setItem("rizzource_session", encrypted);
@@ -631,7 +631,7 @@ const userApiSlice = createSlice({
                 state.roles = action.payload.roles || [];
                 const encrypted = encrypt({
                     token: action.payload.token,
-                    user: action.payload.user || action.payload.data,
+                    user: action.payload || action.payload.data,
                     roles: action.payload.roles || [],
                 });
                 localStorage.setItem("rizzource_session", encrypted);
