@@ -620,68 +620,23 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
   }
 
   // ========== ENHANCED AI FUNCTIONS WITH PROMPT SUPPORT ==========
-  const generateAIBulletsWithPrompt = async (expId, bulletId, customPrompt) => {
+  const generateAIBulletsWithPrompt = async (
+    expId,
+    bulletId,
+    customPrompt,
+  ) => {
     const exp = resumeData?.experience.find((e) => e.id === expId)
     const bullet = exp?.bullets.find((b) => b.id === bulletId)
     if (!exp || !bullet) return
 
-    setPromptModalState((prev) => ({ ...prev, isLoading: true }))
-    setActiveEnhanceBulletId(bulletId)
-    setIsGeneratingEnhance(true)
-    setEnhanceAiSuggestions([])
+    setPromptModalState((p) => ({ ...p, isOpen: false }))
 
-    track("AIBulletImproveWithPromptStarted", {
-      bulletId,
+    runEnhanceBullet({
       expId,
-      hasCustomPrompt: !!customPrompt,
+      bulletId,
+      bulletText: bullet.text,
+      userPrompt: customPrompt,
     })
-    posthog?.capture("ai_resume_enhance_with_prompt", {
-      exp_id: expId,
-      bullet_id: bulletId,
-      has_custom_prompt: !!customPrompt,
-    })
-
-    try {
-      const result = await dispatch(
-        improveBulletThunk({
-          bullet_text: bullet.text,
-          job_title: exp.title,
-          user_prompt: customPrompt || "",
-        }),
-      )
-
-      if (result.meta.requestStatus === "fulfilled") {
-        const suggestions = result.payload.bullets
-          ? [result.payload.bullets]
-          : result.payload.improvements || []
-
-        setEnhanceAiSuggestions(
-          suggestions
-            .filter((text) => /^\d+\.\s*".*"$/.test(text))
-            .map((text, i) => ({
-              id: `sug-${i}`,
-              text: text
-                .replace(/^\d+\.\s*/, "")
-                .replace(/^"|"$|^"+|"+$/g, ""),
-            })),
-        )
-        track("AIBulletImproveWithPromptCompleted", {
-          count: suggestions.length,
-        })
-        posthog?.capture("ai_resume_enhance_with_prompt_completed", {
-          suggestion_count: suggestions.length,
-        })
-      } else {
-        throw new Error("Failed to improve bullet")
-      }
-    } catch (error) {
-      toast.error("Failed to generate suggestions")
-      track("AIBulletImproveWithPromptFailed")
-      posthog?.capture("ai_resume_enhance_with_prompt_failed")
-    } finally {
-      setIsGeneratingEnhance(false)
-      setPromptModalState((prev) => ({ ...prev, isLoading: false, isOpen: false }))
-    }
   }
 
   const generateNewBulletWithPrompt = async (expId, customPrompt) => {
@@ -753,6 +708,101 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
     } else {
       toast.error("Failed to improve bullet")
       return []
+    }
+  }
+
+  const normalizeAiSuggestions = (payload) => {
+    let raw =
+      payload?.improvements ??
+      payload?.newBullets ??
+      payload?.bullets ??
+      payload?.bullet ??
+      []
+
+    // Step 1: normalize to array
+    let arr = []
+    if (typeof raw === "string") arr = [raw]
+    else if (Array.isArray(raw)) arr = raw
+    else arr = []
+
+    // Step 2: flatten + clean
+    const cleaned = arr
+      .flat()
+      .map((x) => String(x ?? "").trim())
+      .filter(Boolean)
+
+    // Step 3: split compound bullets
+    const splitSuggestions = cleaned.flatMap((text) => {
+      // If it clearly contains multiple bullets, split them
+      if (
+        text.includes(" - ") ||
+        text.includes("\n") ||
+        /^\s*\d+\./m.test(text)
+      ) {
+        return text
+          // split on common bullet separators
+          .split(/\n+|\s+-\s+|\s+•\s+|\d+\.\s+/g)
+          .map((t) => t.trim())
+          .filter(Boolean)
+      }
+
+      // otherwise keep as-is
+      return [text]
+    })
+
+    // Step 4: final cleanup
+    return splitSuggestions
+      .map((text) =>
+        text
+          .replace(/^"+|"+$/g, "")
+          .replace(/^\s*[-•]\s*/, "")
+          .trim(),
+      )
+      .filter(Boolean)
+  }
+
+  const runEnhanceBullet = async ({
+    expId,
+    bulletId,
+    bulletText,
+    userPrompt = "",
+  }) => {
+    const exp = resumeData?.experience.find((e) => e.id === expId)
+    if (!exp) return
+
+    setActiveEnhanceBulletId(bulletId)
+    setIsGeneratingEnhance(true)
+    setEnhanceAiSuggestions([])
+
+    try {
+      const result = await dispatch(
+        improveBulletThunk({
+          bullet_text: bulletText,
+          job_title: exp.title,
+          user_prompt: userPrompt || "",
+        }),
+      )
+
+      if (result.meta.requestStatus !== "fulfilled") {
+        throw new Error("AI failed")
+      }
+
+      const cleaned = normalizeAiSuggestions(result.payload)
+
+      if (!cleaned.length) {
+        toast.error("AI returned no usable suggestions")
+      }
+
+      setEnhanceAiSuggestions(
+        cleaned.map((text, i) => ({
+          id: `sug-${Date.now()}-${i}`,
+          text,
+        })),
+      )
+    } catch (err) {
+      toast.error("Failed to generate suggestions")
+    } finally {
+      setIsGeneratingEnhance(false)
     }
   }
 
@@ -930,83 +980,33 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
   }, [])
 
   // AI Bullet Enhancement
-  const handleEnhanceBullet = async (expId, bulletId, bulletText) => {
-    const exp = resumeData?.experience.find((e) => e.id === expId)
-    if (!exp) return
-
-    setActiveEnhanceBulletId(bulletId)
-    setIsGeneratingEnhance(true)
-    setEnhanceAiSuggestions([])
-    track("AIBulletImproveStarted", {
-      bulletId,
+  const handleEnhanceBullet = (expId, bulletId, bulletText) => {
+    runEnhanceBullet({
       expId,
-      bulletLength: bulletText.length,
+      bulletId,
+      bulletText,
+      userPrompt: "",
     })
-    posthog?.capture("ai_resume_enhance_bullet", {
-      exp_id: expId,
-      bullet_id: bulletId,
-      bullet_length: bulletText.length,
-    })
-
-    try {
-      const suggestions = await generateAIBullets(bulletText, exp.title)
-      setEnhanceAiSuggestions(
-        suggestions
-          .filter((text) => /^\d+\.\s*".*"$/.test(text))
-          .map((text, i) => ({
-            id: `sug-${i}`,
-            text: text
-              .replace(/^\d+\.\s*/, "")
-              .replace(/^"|"$|^"+|"+$/g, ""),
-          })),
-      )
-      track("AIBulletImproveCompleted", {
-        count: suggestions.length,
-      })
-      posthog?.capture("ai_resume_enhance_completed", {
-        suggestion_count: suggestions.length,
-      })
-    } catch (error) {
-      toast.error("Failed to generate suggestions")
-      track("AIBulletImproveFailed")
-      posthog?.capture("ai_resume_enhance_failed")
-    } finally {
-      setIsGeneratingEnhance(false)
-    }
   }
 
-  const handleRegenerateSuggestions = async () => {
+  const handleRegenerateSuggestions = () => {
     if (!activeEnhanceBulletId || !resumeData) return
 
     const exp = resumeData.experience.find((e) =>
       e.bullets.some((b) => b.id === activeEnhanceBulletId),
     )
-    const bullet = exp?.bullets.find((b) => b.id === activeEnhanceBulletId)
+    const bullet = exp?.bullets.find(
+      (b) => b.id === activeEnhanceBulletId,
+    )
+
     if (!exp || !bullet) return
 
-    track("AIRegenerateSuggestions", { bulletId: activeEnhanceBulletId })
-    posthog?.capture("ai_resume_regenerate_suggestions", {
-      bullet_id: activeEnhanceBulletId,
+    runEnhanceBullet({
+      expId: exp.id,
+      bulletId: bullet.id,
+      bulletText: bullet.text,
+      userPrompt: "", // regenerate = no custom prompt
     })
-
-    setIsGeneratingEnhance(true)
-    try {
-      const suggestions = await generateAIBullets(bullet.text, exp.title)
-      setEnhanceAiSuggestions(
-        suggestions
-          .filter((text) => /^\d+\.\s*".*"$/.test(text))
-          .map((text, i) => ({
-            id: `sug-${i}`,
-            text: text
-              .replace(/^\d+\.\s*/, "")
-              .replace(/^"|"$|^"+|"+$/g, ""),
-          })),
-      )
-    } catch (error) {
-      toast.error("Failed to regenerate suggestions")
-    } finally {
-      setIsGeneratingEnhance(false)
-    }
   }
 
   const handleUseSuggestion = (expId, bulletId, newText) => {
