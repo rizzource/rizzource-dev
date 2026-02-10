@@ -71,6 +71,7 @@ function JobPortalFunc() {
   const [showResumeUpload, setShowResumeUpload] = useState(false);
   const [isSearchBarSticky, setIsSearchBarSticky] = useState(false);
   const [currentPageNum, setCurrentPageNum] = useState(1);
+  const isFavoritesView = location.pathname.includes("favoritejobs");
 
   // Refs for scroll behavior
   const resultsRef = useRef(null);
@@ -99,6 +100,32 @@ function JobPortalFunc() {
     "2L": "2L",
     "3L": "3L",
   };
+
+  const prevViewRef = useRef(null);
+
+  useEffect(() => {
+    const currentView = isFavoritesView ? "favorites" : "jobs";
+
+    // Only reset when switching views (jobs <-> favorites)
+    if (prevViewRef.current && prevViewRef.current !== currentView) {
+      setSearchTerm("");
+      setDebouncedSearchTerm("");
+      setSelectedFirm("");
+      setSelectedState("");
+      setSelectedType("");
+      setSelectedPracticeArea("");
+      setSelectedYearEligibility("");
+      setCurrentPageNum(1);
+
+      track("FiltersResetOnViewChange", { view: currentView });
+      posthog?.capture("filters_reset_on_view_change", {
+        view: currentView,
+      });
+    }
+
+    prevViewRef.current = currentView;
+  }, [isFavoritesView]);
+
 
   useEffect(() => {
     dispatch(getStatesThunk());
