@@ -109,7 +109,17 @@ const MinimalistHome = () => {
     { name: "Kirkland & Ellis", logo: kirklandLogo },
     { name: "Skadden", logo: skaddenLogo },
   ];
+  const [isMobile, setIsMobile] = useState(false);
 
+  useEffect(() => {
+    // Check if mobile on mount
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+
+    // Re-check on resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   return (
     <div className="min-h-screen bg-warm-cream text-charcoal font-sans selection:bg-electric-teal/30 overflow-x-hidden">
 
@@ -237,7 +247,7 @@ const MinimalistHome = () => {
               }
 
               .marquee-track {
-                animation: marquee 40s linear infinite;
+                animation: marquee ${isMobile ? '25s' : '40s'} linear infinite;
                 display: flex;
                 gap: 3rem;
                 padding: 0.75rem 0;
@@ -288,17 +298,15 @@ const MinimalistHome = () => {
                 width: auto;
                 height: auto;
                 object-fit: contain;
-           
+             
                 transition: filter 0.4s cubic-bezier(0.23, 1, 0.320, 1);
               }
 
               .logo-item:hover img {
                 filter: grayscale(0) brightness(1.1);
               }
-            `
-                //  filter: grayscale(1) brightness(0.85);
-            }</style>
-
+            `}</style>
+                {/* filter: grayscale(1) brightness(0.85); */}
                 <div className="marquee-track">
                   {[...firmLogos, ...firmLogos].map((firm, idx) => (
                     <div key={idx} className="logo-item" title={firm.name}>
