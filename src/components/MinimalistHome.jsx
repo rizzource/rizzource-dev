@@ -4,18 +4,18 @@ import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowRight, 
-  CheckCircle2, 
-  TrendingUp, 
-  Award, 
-  Users2, 
-  Clock, 
-  Sparkles, 
-  Target, 
+import {
+  ArrowRight,
+  CheckCircle2,
+  TrendingUp,
+  Award,
+  Users2,
+  Clock,
+  Sparkles,
+  Target,
   Zap,
   Star,
-  Waves 
+  Waves
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
@@ -112,7 +112,7 @@ const MinimalistHome = () => {
 
   return (
     <div className="min-h-screen bg-warm-cream text-charcoal font-sans selection:bg-electric-teal/30 overflow-x-hidden">
-      
+
       {/* Magical Background Elements */}
       <div
         className="fixed inset-0 pointer-events-none z-0 opacity-40 transition-transform duration-700 ease-out"
@@ -125,7 +125,7 @@ const MinimalistHome = () => {
       </div>
 
       <main className="relative z-10">
-        
+
         {/* Immersive Hero Section */}
         <section
           ref={heroRef}
@@ -133,7 +133,7 @@ const MinimalistHome = () => {
           style={{ opacity: heroOpacity, transform: `scale(${heroScale})` }}
         >
           <div className="container relative z-10 text-center">
-            
+
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-soft-teal border border-electric-teal/20 text-deep-teal font-black uppercase tracking-[0.2em] text-[10px] mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
               <Sparkles className="h-3 w-3 animate-pulse" />
@@ -171,7 +171,7 @@ const MinimalistHome = () => {
                 Build Your Future
                 <ArrowRight className="ml-3 h-5 w-5 transition-transform group-hover:translate-x-2" />
               </Button>
-              
+
               <div className="flex -space-x-4">
                 {heroTestimonials.map((t, i) => (
                   <div
@@ -200,27 +200,131 @@ const MinimalistHome = () => {
         </section>
 
         {/* Horizontal Scroll Firms Section */}
-        <section className="py-24 overflow-hidden bg-charcoal text-warm-cream">
-          <div className="flex whitespace-nowrap animate-infinite-scroll">
-            {[...firmLogos, ...firmLogos].map((firm, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-20 px-10"
-              >
-                <img 
-                  src={firm.logo} 
-                  alt={firm.name}
-                  className="h-12 w-auto grayscale brightness-200 opacity-50 hover:opacity-100 hover:grayscale-0 transition-all duration-500"
-                />
+        <section className="relative py-20 overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-y border-slate-800">
+          {/* Radial accent for depth */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -right-1/3 -top-1/3 w-2/3 h-2/3 bg-blue-900/5 rounded-full blur-3xl" />
+          </div>
+
+          <div className="relative mx-auto px-4">
+            {/* Section label with premium styling */}
+            <div className="flex items-center gap-3 mb-16 justify-center">
+              <div className="h-px w-8 bg-gradient-to-r from-transparent to-slate-500" />
+              <span className="text-xs font-semibold text-slate-400 tracking-widest uppercase">
+                Trusted by industry leaders
+              </span>
+              <div className="h-px w-8 bg-gradient-to-l from-transparent to-slate-500" />
+            </div>
+
+            {/* Marquee container with fade edges */}
+            <div className="relative">
+              {/* Left fade overlay */}
+              <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-slate-950 via-slate-950 to-transparent z-20 pointer-events-none" />
+
+              {/* Right fade overlay */}
+              <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-slate-950 via-slate-950 to-transparent z-20 pointer-events-none" />
+
+              {/* Marquee track */}
+              <div className="overflow-hidden">
+                <style>{`
+              @keyframes marquee {
+                0% {
+                  transform: translateX(0);
+                }
+                100% {
+                  transform: translateX(-50%);
+                }
+              }
+
+              .marquee-track {
+                animation: marquee 40s linear infinite;
+                display: flex;
+                gap: 3rem;
+                padding: 0.75rem 0;
+              }
+
+              .marquee-track:hover {
+                animation-play-state: paused;
+              }
+
+              .logo-item {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                width: 180px;
+                height: 90px;
+                background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.3) 100%);
+                border: 1px solid rgba(100, 116, 139, 0.2);
+                border-radius: 12px;
+                transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+                position: relative;
+                overflow: hidden;
+              }
+
+              .logo-item::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0) 100%);
+                opacity: 0;
+                transition: opacity 0.4s ease;
+              }
+
+              .logo-item:hover {
+                background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.6) 100%);
+                border-color: rgba(100, 116, 139, 0.4);
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+                transform: translateY(-4px);
+              }
+
+              .logo-item:hover::before {
+                opacity: 1;
+              }
+
+              .logo-item img {
+                max-width: 85%;
+                max-height: 75%;
+                width: auto;
+                height: auto;
+                object-fit: contain;
+           
+                transition: filter 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+              }
+
+              .logo-item:hover img {
+                filter: grayscale(0) brightness(1.1);
+              }
+            `
+                //  filter: grayscale(1) brightness(0.85);
+            }</style>
+
+                <div className="marquee-track">
+                  {[...firmLogos, ...firmLogos].map((firm, idx) => (
+                    <div key={idx} className="logo-item" title={firm.name}>
+                      <img
+                        src={firm.logo}
+                        alt={firm.name}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+
+              {/* Pause indicator hint */}
+              <div className="absolute bottom-2 right-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                Pause on hover
+              </div>
+            </div>
           </div>
         </section>
 
         {/* AI Magic Grid - Success Metrics */}
         <section className="py-32 px-6">
           <div className="container mx-auto">
-            
+
             <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
               <div className="max-w-xl">
                 <Badge className="bg-ai-violet/10 text-ai-violet border-ai-violet/20 font-black uppercase tracking-widest px-4 py-1 mb-6">
@@ -238,7 +342,7 @@ const MinimalistHome = () => {
 
             {/* Metrics Grid */}
             <div className="grid lg:grid-cols-12 gap-6">
-              
+
               {/* Large Feature Card */}
               <div className="lg:col-span-8 group cursor-pointer">
                 <Card className="h-full border-none bg-white shadow-2xl rounded-[3rem] overflow-hidden">
@@ -304,9 +408,9 @@ const MinimalistHome = () => {
           <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
             <Waves className="w-full h-full text-charcoal/10" />
           </div>
-          
+
           <div className="container mx-auto px-6 text-center">
-            
+
             {/* Scrolling Background Text */}
             <h2
               className="text-8xl md:text-[15rem] font-black uppercase tracking-tighter text-charcoal/10 leading-none select-none transition-transform duration-100"
@@ -314,7 +418,7 @@ const MinimalistHome = () => {
             >
               SUCCESS_LANDED_OFFERS_V10_MAGIC
             </h2>
-            
+
             {/* Featured Testimonial */}
             <div className="relative -mt-10 md:-mt-32 z-10 bg-white p-12 md:p-24 rounded-[4rem] shadow-2xl max-w-4xl mx-auto border-8 border-charcoal">
               <div className="flex gap-1 mb-8 justify-center">
@@ -327,8 +431,8 @@ const MinimalistHome = () => {
               </p>
               <div className="flex items-center justify-center gap-6">
                 <div className="w-20 h-20 rounded-full bg-ai-violet border-4 border-charcoal overflow-hidden">
-                  <img 
-                    src={testimonials[0].image} 
+                  <img
+                    src={testimonials[0].image}
                     alt={testimonials[0].name}
                     className="w-full h-full object-cover"
                   />
@@ -375,7 +479,7 @@ const MinimalistHome = () => {
         {/* How It Works */}
         <section className="py-32 px-6">
           <div className="container mx-auto">
-            
+
             <div className="text-center mb-16">
               <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tight mb-4">
                 Your Path to <span className="text-electric-teal">BigLaw</span>
