@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { track } from "@/lib/analytics"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 import { usePostHog } from "posthog-js/react"
 import {
   ArrowLeft,
@@ -1328,7 +1335,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
 
   // Main Editor with Side-by-Side Preview
   return (
-    <div className="min-h-screen bg-warm-cream" style={{ marginTop: 70 }}>
+    <div className="min-h-full bg-warm-cream" style={{ marginTop: 70 }}>
       <FeedbackModal
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
@@ -1374,7 +1381,7 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
         </div>
       </div>
 
-      <div className="flex h-[calc(100vh-73px)] md:flex-row flex-col">
+      <div className="flex h-[calc(100vh+400px)] md:flex-row flex-col">
         {/* Left Panel - Editor */}
         <div
           className={`
@@ -1967,68 +1974,108 @@ const ResumeEditor = ({ onBack, initialFile = null, initialExtractedText = "" })
         {/* Right Panel - Live Preview */}
         <div
           className={`
-            bg-warm-cream overflow-hidden
+            bg-warm-cream
             ${mobileView === "preview" ? "block" : "hidden"}
             md:block md:w-1/2
           `}
         >
           <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-charcoal/10 bg-white flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className={badgeSoft}>
-                  <Sparkles className="h-3 w-3 animate-pulse" />
-                  Live Preview
+            <div className="px-4 py-2.5 border-b border-charcoal/10 bg-white flex items-center justify-between gap-4">
+
+              {/* LEFT: Status */}
+              <div className="flex items-center gap-2 min-h-[32px]">
+                <span className={`${badgeSoft} h-6 px-2 text-xs flex items-center gap-1`}>
+                  <Sparkles className="h-3 w-3" />
+                  Live
                 </span>
-                {!isPreviewEditing && <span className={badgeBeta}>AUTO</span>}
+
+                {!isPreviewEditing && (
+                  <span className={`${badgeBeta} h-6 px-2 text-xs`}>
+                    AUTO
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <Badge className={badgeDark}>
-                  <FileText className="h-3.5 w-3.5 mr-2" />
-                  {uploadedFile?.name}
+              {/* RIGHT: Actions */}
+              <div className="flex items-center gap-2 ">
+
+                {/* Filename */}
+                <Badge
+                  className={`
+    ${badgeDark}
+    h-7 px-2 text-xs max-w-[220px] truncate
+    hover:bg-inherit hover:text-inherit
+    focus:bg-inherit focus:text-inherit
+    pointer-events-auto
+  `}
+                  title={uploadedFile?.name}
+                >
+                  <FileText className="h-3.5 w-3.5 mr-1.5" />
+                  {/* <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild> */}
+                        <span className="truncate max-w-[220px] cursor-default">
+                          {uploadedFile?.name}
+                        </span>
+                      {/* </TooltipTrigger> */}
+
+                      {/* <TooltipContent
+                        side="bottom"
+                        align="start"
+                        className="max-w-xs text-xs"
+                      >
+                        {uploadedFile?.name}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider> */}
+
                 </Badge>
 
+                {/* Edit / Save */}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handlePreviewEditToggle}
-                  className={isPreviewEditing ? primaryBtn : secondaryBtn}
+                  className={`h-8 px-3 text-xs ${isPreviewEditing ? primaryBtn : secondaryBtn}`}
                 >
                   {isPreviewEditing ? (
                     <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
+                      <Save className="h-3.5 w-3.5 mr-1.5" />
+                      Save
                     </>
                   ) : (
                     <>
-                      <Edit3 className="h-4 w-4 mr-2" />
-                      Edit Preview
+                      <Edit3 className="h-3.5 w-3.5 mr-1.5" />
+                      Edit
                     </>
                   )}
                 </Button>
 
+                {/* Export */}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={onDownloadPdf}
                   disabled={isDownloadingPdf || isPreviewEditing}
-                  className={`${secondaryBtn} ${isDownloadingPdf ? "opacity-70 cursor-not-allowed" : ""}`}
+                  className={`h-8 px-3 text-xs ${secondaryBtn} ${isDownloadingPdf ? "opacity-70 cursor-not-allowed" : ""
+                    }`}
                 >
                   {isDownloadingPdf ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Exporting…
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      Exporting
                     </>
                   ) : (
                     <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export PDF
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Export
                     </>
                   )}
                 </Button>
 
               </div>
             </div>
+
 
             <ScrollArea className="flex-1">
               <div className="p-6">
