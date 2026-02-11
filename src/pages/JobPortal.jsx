@@ -1025,10 +1025,10 @@ function JobPortalFunc() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-12 gap-4">
               <div>
                 <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight mb-1 sm:mb-2 animate-slide-in-left">
-                  {filteredJobs.length} {filteredJobs.length === 1 ? "Position" : "Positions"} Found
+                  {totalJobs} {totalJobs === 1 ? "Position" : "Positions"} Found
                 </h2>
                 <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-warm-gray">
-                  Page {currentPageNum} of {Math.max(1, totalPages)} • {totalJobs} Total Opportunities
+                  Page {currentPageNum} of {Math.max(1, totalPages)} • Showing {filteredJobs.length}{filteredJobs.length === 1 ? " Opportunity" : " Opportunities"}
                 </p>
               </div>
             </div>

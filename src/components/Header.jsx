@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Zap, Shield, LogOut, User, ArrowLeft } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -19,6 +19,20 @@ const Header = () => {
   const { pathname } = location;
   const { theme } = useTheme();
 
+  // ✅ NEW: scroll compression state
+  const [isCompressed, setIsCompressed] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      // tweak threshold if you want earlier/later compression
+      setIsCompressed(window.scrollY > 16);
+    };
+
+    onScroll(); // set initial state on mount
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const handleSignOut = () => {
     dispatch(logout());
     navigate("/auth");
@@ -26,27 +40,67 @@ const Header = () => {
 
   const resolvedRole = isSuperAdmin() ? "Super Admin" : "";
 
-  return (
-    <nav className="fixed top-0 z-[100] w-full border-b border-charcoal/5 bg-warm-cream/60 backdrop-blur-xl transition-all duration-300">
-      <div className="container flex h-20 items-center justify-between px-6 mx-auto">
+  // ✅ NEW: size classes (no behavior changes)
+  const navHeight = isCompressed ? "h-14" : "h-20";
+  const containerPad = isCompressed ? "px-5" : "px-6";
+  const navGap = isCompressed ? "gap-4" : "gap-6";
 
+  const logoBox = isCompressed ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl";
+  const zapSize = isCompressed ? "h-5 w-5" : "h-6 w-6";
+
+  const brandTitle = isCompressed ? "text-xl" : "text-2xl";
+  const brandTagline = isCompressed ? "hidden" : "hidden sm:block"; // hide tagline when compressed
+
+  return (
+    <nav
+      className={[
+        "fixed top-0 z-[100] w-full border-b border-charcoal/5 bg-warm-cream/60 backdrop-blur-xl",
+        "transition-all duration-300",
+        isCompressed ? "shadow-sm" : "",
+      ].join(" ")}
+    >
+      <div
+        className={[
+          "container mx-auto flex items-center justify-between",
+          navHeight,
+          containerPad,
+          "transition-all duration-300",
+        ].join(" ")}
+      >
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 group cursor-pointer">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-charcoal transition-transform group-hover:rotate-12">
-            <Zap className="h-6 w-6 text-electric-teal" />
+          <div
+            className={[
+              "relative flex items-center justify-center bg-charcoal transition-all duration-300 group-hover:rotate-12",
+              logoBox,
+            ].join(" ")}
+          >
+            <Zap className={[zapSize, "text-electric-teal transition-all duration-300"].join(" ")} />
             <div className="absolute -inset-1 bg-electric-teal/20 blur-md rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-2xl font-black tracking-tighter uppercase italic">RIZZource</span>
-            <span className="hidden sm:block text-[10px] font-bold uppercase tracking-widest text-warm-gray">
+
+          <div className="flex flex-col leading-tight">
+            <span
+              className={[
+                brandTitle,
+                "font-black tracking-tighter uppercase italic transition-all duration-300",
+              ].join(" ")}
+            >
+              RIZZource
+            </span>
+            <span
+              className={[
+                brandTagline,
+                "text-[10px] font-bold uppercase tracking-widest text-warm-gray transition-all duration-300",
+              ].join(" ")}
+            >
               Law School & Beyond
             </span>
           </div>
         </Link>
 
         {/* Navigation Links & Auth */}
-        <div className="flex items-center gap-6">
-
+        <div className={["flex items-center transition-all duration-300", navGap].join(" ")}>
           {/* Back button on certain pages */}
           {pathname === "/auth" || pathname === "/admin" ? (
             <Link
@@ -73,7 +127,7 @@ const Header = () => {
             </Link>
           )}
 
-          {user &&
+          {user && (
             <Link
               to="/favoritejobs"
               className="relative group overflow-hidden py-1 font-bold uppercase tracking-widest text-xs text-warm-gray hover:text-electric-teal transition-colors"
@@ -85,7 +139,8 @@ const Header = () => {
                 Favorite Jobs
               </span>
             </Link>
-          }
+          )}
+
           {/* Explore Jobs Link */}
           <Link
             to="/jobs"
@@ -127,12 +182,15 @@ const Header = () => {
               </button>
             </>
           ) : (
-            <Link
-              to="/auth">
-              <Button onClick={() => { }} className="h-12 px-8 bg-charcoal hover:bg-deep-teal text-warm-cream rounded-full font-bold uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-xl shadow-charcoal/10">
+            <Link to="/auth">
+              <Button
+                onClick={() => {}}
+                className="h-12 px-8 bg-charcoal hover:bg-deep-teal text-warm-cream rounded-full font-bold uppercase tracking-widest text-xs transition-all hover:scale-105 active:scale-95 shadow-xl shadow-charcoal/10"
+              >
                 <User className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Sign In</span>
-              </Button></Link>
+              </Button>
+            </Link>
           )}
         </div>
       </div>
