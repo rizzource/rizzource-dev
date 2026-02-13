@@ -53,6 +53,7 @@ const Header = () => {
 
   return (
     <nav
+      id="rizz-header"
       className={[
         "fixed top-0 z-[100] w-full border-b border-charcoal/5 bg-warm-cream/60 backdrop-blur-xl",
         "transition-all duration-300",

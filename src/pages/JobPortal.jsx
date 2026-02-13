@@ -72,6 +72,7 @@ function JobPortalFunc() {
   const [isSearchBarSticky, setIsSearchBarSticky] = useState(false);
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const isFavoritesView = location.pathname.includes("favoritejobs");
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   // Refs for scroll behavior
   const resultsRef = useRef(null);
@@ -132,6 +133,28 @@ function JobPortalFunc() {
     dispatch(getFirmsThunk());
     dispatch(getPracticesThunk());
   }, [dispatch]);
+
+  useEffect(() => {
+    const headerEl = document.getElementById("rizz-header");
+    if (!headerEl) return;
+
+    const update = () => {
+      const h = headerEl.getBoundingClientRect().height || 0;
+      setHeaderHeight(h);
+    };
+
+    update();
+
+    const ro = new ResizeObserver(() => update());
+    ro.observe(headerEl);
+
+    window.addEventListener("resize", update, { passive: true });
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   useEffect(() => {
     const isFavorites = window.location.href.includes("favoritejobs");
@@ -252,9 +275,9 @@ function JobPortalFunc() {
   useEffect(() => {
     if (searchBarRef.current) {
       const rect = searchBarRef.current.getBoundingClientRect();
-      searchBarStickyOffset.current = rect.top + window.scrollY - 100; // 100px for header
+      searchBarStickyOffset.current = rect.top + window.scrollY - (headerHeight || 0);
     }
-  }, []);
+  }, [headerHeight]);
 
   // Debounce search term to wait for user to finish typing
   useEffect(() => {
@@ -623,11 +646,14 @@ function JobPortalFunc() {
         {/* Filters Section with Smart Compact Sticky Header */}
         <section
           ref={searchBarRef}
-          className={`sticky top-16 sm:top-20 z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 px-4 sm:px-6 overflow-x-hidden transition-all duration-300 ${isSearchBarSticky ? "shadow-lg shadow-charcoal/5" : ""
-            } ${isSearchBarSticky
+          style={{ top: headerHeight }} // ✅ sticks exactly under header (expanded or compressed)
+          className={`sticky z-40 bg-warm-cream/95 backdrop-blur-xl border-y border-charcoal/5 px-4 sm:px-6 overflow-x-hidden transition-all duration-300 ${
+            isSearchBarSticky ? "shadow-lg shadow-charcoal/5" : ""
+          } ${
+            isSearchBarSticky
               ? "py-2 sm:py-2 max-h-[72px] sm:max-h-[80px]"
               : "py-3 sm:py-4 max-h-none sm:max-h-[260px]"
-            } overflow-visible sm:overflow-hidden`}
+          } overflow-visible sm:overflow-hidden`}
         >
           <div className="container mx-auto">
             {/* EXPANDED LAYOUT (default / on scroll up) */}
